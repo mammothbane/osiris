@@ -3,4 +3,7 @@ name = "osiris"
 version = "0.1.0"
 authors = ["Nathan Perry <avaglir@gmail.com>"]
 
+[lib]
+crate-type = ["staticlib"]
+
 [dependencies]

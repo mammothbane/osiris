@@ -8,7 +8,10 @@ asm_src := $(wildcard src/arch/$(arch)/*.asm)
 asm_obj := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(asm_src))
 
-.PHONY: all clean run iso
+target ?= $(arch)-osiris
+rust_os := target/$(target)/debug/libosiris.a
+
+.PHONY: all clean run iso kernel
 
 all: $(kernel)
 
@@ -27,8 +30,11 @@ $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) build/isofiles 2> /dev/null
 	@rm -r build/isofiles
 
-$(kernel): $(asm_obj) $(linker_script)
-	@ld -n -T $(linker_script) -o $(kernel) $(asm_obj)
+$(kernel): kernel $(asm_obj) $(linker_script)
+	@ld -n -T $(linker_script) -o $(kernel) $(asm_obj) $(rust_os)
+
+kernel:
+	@xargo build --target $(target)
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
