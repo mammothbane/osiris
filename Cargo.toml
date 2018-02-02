@@ -7,3 +7,4 @@ authors = ["Nathan Perry <avaglir@gmail.com>"]
 crate-type = ["staticlib"]
 
 [dependencies]
+rlibc = "1.0"

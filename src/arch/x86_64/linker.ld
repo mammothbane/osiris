@@ -6,7 +6,7 @@ SECTIONS {
     .boot :
     {
         /* make sure multiboot is at the beginning */
-        *(.multiboot_header)
+        KEEP(*(.multiboot_header))
     }
 
     .text :
