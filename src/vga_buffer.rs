@@ -124,6 +124,7 @@ pub static WRITER: Mutex<Writer> = Mutex::new(Writer {
 });
 
 macro_rules! println {
+    () => (print!("\n"));
     ($fmt:expr) => (print!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
 }
@@ -141,6 +142,6 @@ pub fn print(args: fmt::Arguments) {
 
 pub fn clear_screen() {
     for _ in 0..BUFFER_HEIGHT {
-        println!("");
+        println!();
     }
 }
