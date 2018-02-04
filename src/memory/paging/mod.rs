@@ -18,7 +18,7 @@ const ENTRY_COUNT: usize = 512;
 pub type PhysicalAddr = usize;
 pub type VirtualAddr = usize;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Page {
     index: usize,
 }
@@ -50,6 +50,32 @@ impl Page {
 
     fn p1_index(&self) -> usize {
         (self.index >> 0) & 0o777
+    }
+
+    pub fn range_inclusive(start: Page, end: Page) -> PageIter {
+        PageIter {
+            start,
+            end,
+        }
+    }
+}
+
+pub struct PageIter {
+    start: Page,
+    end: Page,
+}
+
+impl Iterator for PageIter {
+    type Item = Page;
+
+    fn next(&mut self) -> Option<Page> {
+        if self.start <= self.end {
+            let page = self.start;
+            self.start.index += 1;
+            Some(page)
+        } else {
+            None
+        }
     }
 }
 
@@ -122,7 +148,7 @@ impl ActivePageTable {
     }
 }
 
-pub fn remap_kernel<A>(alloc: &mut A, boot_info: &BootInformation)
+pub fn remap_kernel<A>(alloc: &mut A, boot_info: &BootInformation) -> ActivePageTable
     where A: FrameAllocator
 {
     let mut temp_page = TemporaryPage::new(Page { index: 0xcafebabe }, alloc);
@@ -138,8 +164,6 @@ pub fn remap_kernel<A>(alloc: &mut A, boot_info: &BootInformation)
             .expect("memory map tag required");
 
         for section in elf_sects_tag.sections() {
-            use self::entry::WRITABLE;
-
             if !section.is_allocated() {
                 continue;
             }
@@ -173,6 +197,8 @@ pub fn remap_kernel<A>(alloc: &mut A, boot_info: &BootInformation)
 
     active_table.unmap(old_p4, alloc);
     println!("guard page at {:#x}", old_p4.start_addr());
+
+    active_table
 }
 
 pub struct InactivePageTable {
