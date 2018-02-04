@@ -15,6 +15,7 @@ extern crate spin;
 extern crate multiboot2;
 extern crate x86_64;
 extern crate linked_list_allocator;
+extern crate bit_field;
 
 #[macro_use] extern crate once;
 #[macro_use] extern crate alloc;
@@ -57,7 +58,7 @@ pub extern "C" fn rust_main(multiboot_info: usize) {
 
     enable_nx();
     enable_write_protect();
-    memory::init(boot_info);
+    let mut memory_controller = memory::init(boot_info);
 
     println!();
 
@@ -65,8 +66,7 @@ pub extern "C" fn rust_main(multiboot_info: usize) {
         HEAP_ALLOCATOR.lock().init(HEAP_START, HEAP_START + HEAP_SIZE);
     }
 
-    interrupts::init();
-    x86_64::instructions::interrupts::int3();
+    interrupts::init(&mut memory_controller);
 
     println!("\n\nHalting normally.");
     unsafe { x86_64::instructions::halt(); }

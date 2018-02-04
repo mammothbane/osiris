@@ -2,16 +2,18 @@ use multiboot2::BootInformation;
 
 mod area_frame_allocator;
 mod paging;
+mod stack_allocator;
 pub mod heap_allocator;
 
 pub use self::area_frame_allocator::AreaFrameAllocator;
 pub use self::paging::remap_kernel;
+pub use self::stack_allocator::Stack;
 
 use self::paging::PhysicalAddr;
 
 pub const PAGE_SIZE: usize = 4096;
 
-pub fn init(boot_info: &BootInformation) {
+pub fn init(boot_info: &BootInformation) -> MemoryController {
     assert_has_not_been_called!("memory::init must only be called once");
     let mmap_tag = boot_info.memory_map_tag().expect("memory map tag required");
 
@@ -49,6 +51,20 @@ pub fn init(boot_info: &BootInformation) {
 
     Page::range_inclusive(heap_start_page, heap_end_page)
         .for_each(|p| active_table.map(p, paging::WRITABLE, &mut frame_allocator));
+
+    let stack_allocator = {
+        let stack_start = heap_end_page + 1;
+        let stack_end = stack_start + 100;
+        let stack_alloc_range = Page::range_inclusive(stack_start, stack_end);
+
+        stack_allocator::StackAllocator::new(stack_alloc_range)
+    };
+
+    MemoryController {
+        active_table,
+        frame_allocator,
+        stack_allocator,
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -99,4 +115,22 @@ impl Iterator for FrameIter {
 pub trait FrameAllocator {
     fn alloc(&mut self) -> Option<Frame>;
     fn release(&mut self, frame: Frame);
+}
+
+pub struct MemoryController {
+    active_table: paging::ActivePageTable,
+    frame_allocator: AreaFrameAllocator,
+    stack_allocator: stack_allocator::StackAllocator,
+}
+
+impl MemoryController {
+    pub fn alloc_stack(&mut self, size_in_pages: usize) -> Option<Stack> {
+        let &mut MemoryController {
+            ref mut active_table,
+            ref mut frame_allocator,
+            ref mut stack_allocator
+        } = self;
+
+        stack_allocator.alloc(active_table, frame_allocator, size_in_pages)
+    }
 }

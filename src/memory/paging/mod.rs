@@ -2,7 +2,7 @@ use memory::{PAGE_SIZE, Frame, FrameAllocator};
 
 use multiboot2::BootInformation;
 
-use core::ops::{Deref, DerefMut};
+use core::ops::{Deref, DerefMut, Add};
 
 mod entry;
 mod table;
@@ -23,6 +23,14 @@ pub struct Page {
     index: usize,
 }
 
+impl Add<usize> for Page {
+    type Output = Page;
+
+    fn add(self, rhs: usize) -> Page {
+        Page { index: self.index + rhs }
+    }
+}
+
 impl Page {
     pub fn containing_addr(addr: VirtualAddr) -> Page {
         assert!(addr < 0x0000_8000_0000_0000
@@ -32,7 +40,7 @@ impl Page {
         Page { index: addr / PAGE_SIZE }
     }
 
-    fn start_addr(&self) -> usize {
+    pub fn start_addr(&self) -> usize {
         self.index * PAGE_SIZE
     }
 
@@ -60,6 +68,7 @@ impl Page {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct PageIter {
     start: Page,
     end: Page,
