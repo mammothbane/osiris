@@ -17,8 +17,23 @@ extern crate x86_64;
 mod vga_buffer;
 mod memory;
 
+fn enable_nx() {
+    use x86_64::registers::msr::{IA32_EFER, rdmsr, wrmsr};
+
+    unsafe {
+        let efer = rdmsr(IA32_EFER);
+        wrmsr(IA32_EFER, efer | 1 << 11);
+    }
+}
+
+fn enable_write_protect() {
+    use x86_64::registers::control_regs::{cr0, cr0_write, Cr0};
+
+    unsafe { cr0_write(cr0() | Cr0::WRITE_PROTECT) };
+}
+
 #[no_mangle]
-pub extern fn rust_main(multiboot_info: usize) {
+pub extern "C" fn rust_main(multiboot_info: usize) {
     vga_buffer::clear_screen();
 
     let boot_info = unsafe { multiboot2::load(multiboot_info) };
@@ -51,8 +66,9 @@ pub extern fn rust_main(multiboot_info: usize) {
         mb_start, mb_end, mmap_tag.memory_areas()
     );
 
-    memory::test_paging(&mut frame_allocator);
-
+    enable_nx();
+    enable_write_protect();
+    memory::remap_kernel(&mut frame_allocator, boot_info);
 
     println!("\n\nHalting normally.");
     unsafe { x86_64::instructions::halt(); }
