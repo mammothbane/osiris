@@ -168,6 +168,8 @@ pub fn remap_kernel<A>(alloc: &mut A, boot_info: &BootInformation) -> ActivePage
                 continue;
             }
 
+            // TODO: handle empty sections (?)
+
             assert_eq!(section.start_address() % PAGE_SIZE, 0, "sections must be page-aligned");
             println!("mapping section at addr: {:#x}, size: {:#x}", section.addr, section.size);
 

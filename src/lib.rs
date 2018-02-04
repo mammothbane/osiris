@@ -7,6 +7,7 @@
 #![feature(unique)]
 #![feature(ptr_internals)]
 #![feature(const_fn)]
+#![feature(abi_x86_interrupt)]
 
 extern crate rlibc;
 extern crate volatile;
@@ -18,10 +19,12 @@ extern crate linked_list_allocator;
 #[macro_use] extern crate once;
 #[macro_use] extern crate alloc;
 #[macro_use] extern crate bitflags;
+#[macro_use] extern crate lazy_static;
 
 #[macro_use]
 mod vga_buffer;
 mod memory;
+mod interrupts;
 
 use linked_list_allocator::LockedHeap;
 
@@ -56,13 +59,14 @@ pub extern "C" fn rust_main(multiboot_info: usize) {
     enable_write_protect();
     memory::init(boot_info);
 
+    println!();
+
     unsafe {
         HEAP_ALLOCATOR.lock().init(HEAP_START, HEAP_START + HEAP_SIZE);
     }
 
-    for i in 0..10000 {
-        format!("ALKFDLSDFKJSF");
-    }
+    interrupts::init();
+    x86_64::instructions::interrupts::int3();
 
     println!("\n\nHalting normally.");
     unsafe { x86_64::instructions::halt(); }
