@@ -13,6 +13,7 @@ extern crate volatile;
 extern crate spin;
 extern crate multiboot2;
 extern crate x86_64;
+extern crate linked_list_allocator;
 
 #[macro_use] extern crate once;
 #[macro_use] extern crate alloc;
@@ -22,13 +23,13 @@ extern crate x86_64;
 mod vga_buffer;
 mod memory;
 
-use memory::heap_allocator::BumpAllocator;
+use linked_list_allocator::LockedHeap;
 
 pub const HEAP_START: usize = 0o_000_001_000_000_0000;
 pub const HEAP_SIZE: usize = 100 * 1024;
 
 #[global_allocator]
-static HEAP_ALLOCATOR: BumpAllocator = BumpAllocator::new(HEAP_START, HEAP_START + HEAP_SIZE);
+static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 fn enable_nx() {
     use x86_64::registers::msr::{IA32_EFER, rdmsr, wrmsr};
@@ -55,18 +56,12 @@ pub extern "C" fn rust_main(multiboot_info: usize) {
     enable_write_protect();
     memory::init(boot_info);
 
-    use alloc::boxed::Box;
+    unsafe {
+        HEAP_ALLOCATOR.lock().init(HEAP_START, HEAP_START + HEAP_SIZE);
+    }
 
-    let mut heap_test = Box::new(42);
-    *heap_test -= 15;
-
-    let heap_test2 = Box::new("hello");
-    println!("{:?} {:?}", heap_test, heap_test2);
-
-    let mut vec_test = vec![1,2,3,4,5,6,7];
-    vec_test[3] = 42;
-    for i in &vec_test {
-        print!("{} ", i);
+    for i in 0..10000 {
+        format!("ALKFDLSDFKJSF");
     }
 
     println!("\n\nHalting normally.");
