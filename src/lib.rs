@@ -9,6 +9,9 @@ extern crate rlibc;
 extern crate volatile;
 extern crate spin;
 extern crate multiboot2;
+extern crate x86_64;
+
+#[macro_use] extern crate bitflags;
 
 #[macro_use]
 mod vga_buffer;
@@ -48,18 +51,12 @@ pub extern fn rust_main(multiboot_info: usize) {
         mb_start, mb_end, mmap_tag.memory_areas()
     );
 
-    use memory::FrameAllocator;
-    println!("\n{:?}", frame_allocator.alloc());
+    memory::test_paging(&mut frame_allocator);
 
 
-    for i in 0.. {
-        if let None = frame_allocator.alloc() {
-            println!("allocated {} frames", i);
-            break;
-        }
-    }
-
-    loop{}
+    println!("\n\nHalting normally.");
+    unsafe { x86_64::instructions::halt(); }
+    loop {}
 }
 
 #[lang = "eh_personality"]
@@ -71,5 +68,7 @@ pub extern fn eh_personality() {}
 pub extern fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
     println!("\n\npanic in {} at line {}:", file, line);
     println!("    {}", fmt);
+
+    unsafe { x86_64::instructions::halt(); }
     loop {}
 }
