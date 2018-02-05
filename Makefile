@@ -16,7 +16,7 @@ rust_os := target/$(target)/debug/libosiris.a
 all: $(kernel)
 
 clean:
-	@rm -r build
+	@rm -rf build
 
 debug: $(iso)
 	@qemu-system-x86_64 -cdrom $(iso) -s -S
@@ -36,10 +36,12 @@ $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) build/isofiles 2> /dev/null
 	@rm -r build/isofiles
 
-$(kernel): kernel $(asm_obj) $(linker_script)
+$(kernel): $(rust_os) $(asm_obj) $(linker_script)
 	@ld -n --gc-sections -T $(linker_script) -o $(kernel) $(asm_obj) $(rust_os)
 
-kernel:
+kernel: $(rust_os)
+
+$(rust_os):
 	@xargo build --target $(target)
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
