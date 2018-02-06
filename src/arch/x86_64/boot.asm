@@ -4,6 +4,13 @@ extern long_mode_start
 section .text
 bits 32
 
+;;; Error table
+;;;
+;;; CODE    DESC
+;;; 0       Multiboot magic number not found
+;;; 1       CPUID not supported
+;;; 2       Long mode not supported
+
 start:
     mov esp, stack_top
     mov edi, ebx
@@ -15,13 +22,13 @@ start:
     call setup_pagetable
     call enable_paging
 
-    lgdt [gdt64.pointer] ; enable 64-bit gdt
+    lgdt [gdt64.pointer]  ; load 64-bit gdt
 
     jmp gdt64.code:long_mode_start
 
 
 check_multiboot:
-    cmp eax, 0x36d76289
+    cmp eax, 0x36d76289  ; look for multiboot magic number
     jne .no_multiboot
     ret
 
@@ -115,7 +122,7 @@ enable_paging:
     or eax, 1 << 5
     mov cr4, eax
 
-    ; write long mode to msr
+    ; write long mode to EFER msr
     mov ecx, 0xc0000080
     rdmsr
     or eax, 1 << 8
