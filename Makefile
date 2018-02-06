@@ -8,6 +8,8 @@ asm_src := $(wildcard src/arch/$(arch)/*.asm)
 asm_obj := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(asm_src))
 
+rust_src := $(wildcard src/**/*.rs)
+
 target ?= $(arch)-osiris
 rust_os := target/$(target)/debug/libosiris.a
 
@@ -17,6 +19,7 @@ all: $(kernel)
 
 clean:
 	@rm -rf build
+	@xargo clean
 
 debug: $(iso)
 	@qemu-system-x86_64 -cdrom $(iso) -s -S
@@ -41,7 +44,7 @@ $(kernel): $(rust_os) $(asm_obj) $(linker_script)
 
 kernel: $(rust_os)
 
-$(rust_os):
+$(rust_os): $(rust_src)
 	@xargo build --target $(target)
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm

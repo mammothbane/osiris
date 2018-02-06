@@ -1,9 +1,15 @@
-use multiboot2::BootInformation;
-
 use core::ops::{Deref, DerefMut};
-
-use memory::{PAGE_SIZE, Frame, FrameAllocator};
+use memory::{Frame, FrameAllocator, PAGE_SIZE};
 use memory::frame::IFrame;
+use multiboot2::BootInformation;
+pub use self::active_page_table::ActivePageTable;
+pub use self::entry::*;
+use self::inactive_page_table::IInactivePageTable;
+pub use self::inactive_page_table::InactivePageTable;
+use self::mapper::Mapper;
+pub use self::page::{Page, PageIter};
+use self::page::IPage;
+use self::temporary_page::TemporaryPage;
 
 mod page;
 mod entry;
@@ -13,22 +19,11 @@ mod temporary_page;
 mod inactive_page_table;
 mod active_page_table;
 
-pub use self::entry::*;
-pub use self::page::{Page, PageIter};
-pub use self::inactive_page_table::InactivePageTable;
-pub use self::active_page_table::ActivePageTable;
-
-use self::temporary_page::TemporaryPage;
-use self::mapper::Mapper;
-use self::inactive_page_table::IInactivePageTable;
-use self::page::IPage;
-
 
 const ENTRY_COUNT: usize = 512;
 
 pub type PhysicalAddr = usize;
 pub type VirtualAddr = usize;
-
 
 pub fn remap_kernel<A: FrameAllocator>(alloc: &mut A, boot_info: &BootInformation) -> ActivePageTable {
     let mut temp_page = TemporaryPage::new(Page::new_from_index(0xcafebabe ), alloc);
@@ -44,7 +39,7 @@ pub fn remap_kernel<A: FrameAllocator>(alloc: &mut A, boot_info: &BootInformatio
             .expect("memory map tag required");
 
         for section in elf_sects_tag.sections() {
-            if !section.is_allocated() {
+            if !section.is_allocated() || section.size == 0 {
                 continue;
             }
 
