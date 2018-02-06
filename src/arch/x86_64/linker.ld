@@ -29,16 +29,9 @@ SECTIONS {
         . = ALIGN(4K);
     }
 
-    .got :
+    /DISCARD/ :
     {
-        *(.got)
-        . = ALIGN(4K);
-    }
-
-    .got.plt :
-    {
-        *(.got.plt)
-        . = ALIGN(4K);
+        *(.got.plt) *(.got)
     }
 
     .data.rel.ro : ALIGN(4K)
