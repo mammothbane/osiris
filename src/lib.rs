@@ -8,6 +8,8 @@
 #![feature(ptr_internals)]
 #![feature(const_fn)]
 #![feature(abi_x86_interrupt)]
+#![feature(conservative_impl_trait)]
+#![feature(universal_impl_trait)]
 
 extern crate rlibc;
 extern crate volatile;
@@ -17,8 +19,9 @@ extern crate x86_64;
 extern crate linked_list_allocator;
 extern crate bit_field;
 
-#[macro_use] extern crate once;
+#[allow(unused_imports)]
 #[macro_use] extern crate alloc;
+#[macro_use] extern crate once;
 #[macro_use] extern crate bitflags;
 #[macro_use] extern crate lazy_static;
 

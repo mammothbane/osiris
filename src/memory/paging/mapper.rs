@@ -3,7 +3,10 @@ use core::ptr::Unique;
 use super::{VirtualAddr, PhysicalAddr, Page, ENTRY_COUNT};
 use super::entry::*;
 use super::table::{self, Table, Level4};
+use super::page::IPage;
+
 use memory::{PAGE_SIZE, Frame, FrameAllocator};
+use memory::frame::IFrame;
 
 pub struct Mapper {
     p4: Unique<Table<Level4>>,
@@ -75,7 +78,7 @@ impl Mapper {
     pub fn translate(&self, virt_addr: VirtualAddr) -> Option<PhysicalAddr> {
         let offset = virt_addr % PAGE_SIZE;
         self.translate_page(Page::containing_addr(virt_addr))
-            .map(|frame| frame.index * PAGE_SIZE + offset)
+            .map(|frame| frame.index() * PAGE_SIZE + offset)
     }
 
 
@@ -88,10 +91,10 @@ impl Mapper {
 
                 if let Some(start_frame) = p3_entry.pointed_frame() {
                     if p3_entry.flags().contains(HUGE_PAGE) {
-                        assert_eq!(start_frame.index % (ENTRY_COUNT * ENTRY_COUNT), 0);
-                        return Some(Frame {
-                            index: start_frame.index + page.p2_index() * ENTRY_COUNT + page.p1_index(),
-                        })
+                        assert_eq!(start_frame.index() % (ENTRY_COUNT * ENTRY_COUNT), 0);
+                        return Some(Frame::new(
+                            start_frame.index() + page.p2_index() * ENTRY_COUNT + page.p1_index()
+                        ))
                     }
                 }
 
@@ -100,10 +103,8 @@ impl Mapper {
 
                     if let Some(start_frame) = p2_entry.pointed_frame() {
                         if p2_entry.flags().contains(HUGE_PAGE) {
-                            assert_eq!(start_frame.index % ENTRY_COUNT, 0);
-                            return Some(Frame {
-                                index: start_frame.index + page.p1_index()
-                            });
+                            assert_eq!(start_frame.index() % ENTRY_COUNT, 0);
+                            return Some(Frame::new(start_frame.index() + page.p1_index()));
                         }
                     }
                 }

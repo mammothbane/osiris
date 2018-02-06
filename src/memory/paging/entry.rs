@@ -1,6 +1,7 @@
 use multiboot2::ElfSection;
 
 use memory::Frame;
+use memory::frame::IFrame;
 
 pub struct Entry(u64);
 

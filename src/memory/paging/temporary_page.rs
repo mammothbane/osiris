@@ -59,5 +59,4 @@ impl FrameAllocator for TinyAllocator {
             .map(|x| *x = Some(frame))
             .or_else(|| { panic!("Tiny allocator can only hold 3 frames")});
     }
-
 }

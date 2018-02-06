@@ -37,7 +37,7 @@ pub fn init(memory_controller: &mut MemoryController) {
     let double_fault_stack = memory_controller.alloc_stack(1)
         .expect("could not allocate double fault stack");
 
-    let mut tss = TSS.call_once(|| {
+    let tss = TSS.call_once(|| {
         let mut tss = TaskStateSegment::new();
         tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX] = VirtualAddress(double_fault_stack.top());
 
@@ -47,7 +47,7 @@ pub fn init(memory_controller: &mut MemoryController) {
     let mut code_selector = SegmentSelector(0);
     let mut tss_selector = SegmentSelector(0);
 
-    let mut gdt = GDT.call_once(||{
+    let gdt = GDT.call_once(||{
         let mut gdt = gdt::Gdt::new();
         code_selector = gdt.add_entry(gdt::Descriptor::kernel_code_segment());
         tss_selector = gdt.add_entry(gdt::Descriptor::tss_segment(&tss));

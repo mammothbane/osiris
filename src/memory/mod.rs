@@ -3,13 +3,13 @@ use multiboot2::BootInformation;
 mod area_frame_allocator;
 mod paging;
 mod stack_allocator;
+mod frame;
 pub mod heap_allocator;
 
 pub use self::area_frame_allocator::AreaFrameAllocator;
 pub use self::paging::remap_kernel;
 pub use self::stack_allocator::Stack;
-
-use self::paging::PhysicalAddr;
+pub use self::frame::Frame;
 
 pub const PAGE_SIZE: usize = 4096;
 
@@ -32,9 +32,8 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
     let kernel_start = elf_sections_tag.sections().filter(|s| s.is_allocated()).map(|s| s.addr).min().unwrap();
     let kernel_end = elf_sections_tag.sections().filter(|s| s.is_allocated()).map(|s| s.addr).max().unwrap();
 
-    println!();
-    println!("kernel start: {}, end: {}", kernel_start, kernel_end);
-    println!("multiboot start: {}, end: {}", boot_info.start_address(), boot_info.end_address());
+    println!("\nkernel start: {:#x}, end: {:#x}", kernel_start, kernel_end);
+    println!("multiboot start: {:#x}, end: {:#x}", boot_info.start_address(), boot_info.end_address());
 
     let mut frame_allocator = AreaFrameAllocator::new(
         kernel_start as usize, kernel_end as usize,
@@ -64,51 +63,6 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
         active_table,
         frame_allocator,
         stack_allocator,
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Frame {
-    index: usize,
-}
-
-impl Frame {
-    fn containing_addr(addr: usize) -> Frame {
-        Frame{ index: addr / PAGE_SIZE }
-    }
-
-    fn start_addr(&self) -> PhysicalAddr {
-        self.index * PAGE_SIZE
-    }
-
-    fn clone(&self) -> Frame {
-        Frame { index: self.index }
-    }
-
-    fn range_inclusive(start: Frame, end: Frame) -> FrameIter {
-        FrameIter{
-            start,
-            end,
-        }
-    }
-}
-
-struct FrameIter {
-    start: Frame,
-    end: Frame,
-}
-
-impl Iterator for FrameIter {
-    type Item = Frame;
-
-    fn next(&mut self) -> Option<Frame> {
-        if self.start > self.end {
-            return None
-        }
-
-        let frame = self.start.clone();
-        self.start.index += 1;
-        Some(frame)
     }
 }
 
