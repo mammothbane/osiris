@@ -1,12 +1,10 @@
 use core::ptr::Unique;
-
-use super::{VirtualAddr, PhysicalAddr, Page, ENTRY_COUNT};
-use super::entry::*;
-use super::table::{self, Table, Level4};
-use super::page::IPage;
-
-use memory::{PAGE_SIZE, Frame, FrameAllocator};
+use memory::{Frame, FrameAllocator, PAGE_SIZE};
 use memory::frame::IFrame;
+use super::{ENTRY_COUNT, Page, PhysicalAddr, VirtualAddr};
+use super::entry::*;
+use super::page::IPage;
+use super::table::{self, Level4, Table};
 
 pub struct Mapper {
     p4: Unique<Table<Level4>>,
@@ -41,7 +39,7 @@ impl Mapper {
         self.map_to(page, frame, flags, alloc)
     }
 
-    pub fn unmap<A>(&mut self, page: Page, _allocator: &mut A)
+    pub fn unmap<A>(&mut self, page: Page, allocator: &mut A)
         where A: FrameAllocator
     {
         assert!(self.translate(page.start_addr()).is_some());
@@ -62,7 +60,7 @@ impl Mapper {
 
         // TODO: free page table(s) if empty
 
-        // allocator.release(frame);
+        allocator.release(frame);
     }
 
     pub fn map_to<A>(&mut self, page: Page, frame: Frame, flags: EntryFlags, allocator: &mut A) where A: FrameAllocator {

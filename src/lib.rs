@@ -85,7 +85,7 @@ pub extern "C" fn osiris_main(multiboot_info: usize) {
     enable_nx();
     enable_write_protect();
 
-    let mut memory_controller = memory::init(unsafe { multiboot2::load(multiboot_info) });
+    let mut active_page_table = memory::init(unsafe { multiboot2::load(multiboot_info) });
 
     unsafe { remap_stack(KERNEL_BASE as u64); }
 

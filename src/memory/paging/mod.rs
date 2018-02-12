@@ -10,6 +10,7 @@ use self::mapper::Mapper;
 pub use self::page::{Page, PageIter};
 use self::page::IPage;
 use self::temporary_page::TemporaryPage;
+use super::NopAllocator;
 
 mod page;
 mod entry;
@@ -25,16 +26,33 @@ const ENTRY_COUNT: usize = 512;
 pub type PhysicalAddr = usize;
 pub type VirtualAddr = usize;
 
-pub fn remap_kernel<A: FrameAllocator>(alloc: &mut A, boot_info: &BootInformation) -> ActivePageTable {
-    use super::KERNEL_BASE;
+pub fn remap_kernel(boot_info: &BootInformation) -> ActivePageTable {
+    use super::{KERNEL_BASE, PAGE_SIZE};
 
-    let mut temp_page = TemporaryPage::new(Page::new_from_index(0xcafebabe), alloc);
+    let elf_sections_tag = boot_info.elf_sections_tag().expect("elf sections required");
+
+    let kernel_end = elf_sections_tag.sections()
+        .filter(|s| s.is_allocated() && s.size > 0)
+        .map(|s| s.addr)
+        .max().unwrap();
+
+    // TODO: this is super unsafe. at least check that these are in valid memory areas.
+    let temp_frames = [
+        Frame::containing_addr(kernel_end as usize + PAGE_SIZE),
+        Frame::containing_addr(kernel_end as usize + PAGE_SIZE*2),
+        Frame::containing_addr(kernel_end as usize + PAGE_SIZE*3)
+    ];
+
+    let mut temp_page = TemporaryPage::from_frames(
+        Page::new_from_index(0xcafebabe),
+        temp_frames
+    );
+
+    // TODO: see above
+    let new_table_frame = Frame::containing_addr(kernel_end as usize + PAGE_SIZE*4);
 
     let mut active_table = unsafe { ActivePageTable::new() };
-    let mut new_table = {
-        let frame = alloc.alloc().expect("out of frames");
-        InactivePageTable::new(frame, &mut active_table, &mut temp_page)
-    };
+    let mut new_table = InactivePageTable::new(new_table_frame, &mut active_table, &mut temp_page);
 
     active_table.with(&mut new_table, &mut temp_page, |mapper| {
         let elf_sects_tag = boot_info.elf_sections_tag()
@@ -79,7 +97,6 @@ pub fn remap_kernel<A: FrameAllocator>(alloc: &mut A, boot_info: &BootInformatio
             .for_each(|f| {
                 let page = Page::containing_addr(KERNEL_BASE + f.start_addr());
                 mapper.map_to(page, f.clone(), PRESENT, alloc);
-//                mapper.identity_map(f, PRESENT, alloc);
             });
     });
 
@@ -96,28 +113,7 @@ pub fn remap_kernel<A: FrameAllocator>(alloc: &mut A, boot_info: &BootInformatio
         old_table.p4_frame().start_addr()
     );
 
-    active_table.unmap(old_p4, alloc);
-    println!("guard page at {:#x}", old_p4.start_addr());
+    active_table.unmap(old_p4, NopAllocator{});
 
     active_table
 }
-
-//#[no_mangle]
-//#[link(name = "remap_cleanup")]
-//extern "C" fn cleanup() -> ! {
-//    unsafe {
-//        use vga_buffer;
-//        vga_buffer::update_vga_base(super::VGA_BASE + KERNEL_BASE);
-//    }
-//
-//    println!("kernel remapped.");
-//
-//    let old_p4 = Page::containing_addr(
-//         old_table.p4_frame().start_addr()
-//    );
-//
-//    active_table.unmap(old_p4, alloc);
-//    println!("guard page at {:#x}", old_p4.start_addr());
-//
-//    active_table
-//}

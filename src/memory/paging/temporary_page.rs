@@ -1,5 +1,5 @@
-use super::{Page, ActivePageTable, VirtualAddr};
-use memory::{FrameAllocator, Frame};
+use memory::{Frame, FrameAllocator};
+use super::{ActivePageTable, Page, VirtualAddr};
 use super::table::{Level1, Table};
 
 pub struct TemporaryPage {
@@ -16,6 +16,13 @@ impl TemporaryPage {
         TemporaryPage {
             page,
             alloc: TinyAllocator::new(alloc),
+        }
+    }
+
+    pub fn from_frames(page: Page, frames: [Frame; 3]) -> TemporaryPage {
+        TemporaryPage {
+            page,
+            alloc: TinyAllocator::from_frames(frames)
         }
     }
 
@@ -46,6 +53,10 @@ impl TinyAllocator {
         let mut f = || allocator.alloc();
         let frames = [f(), f(), f()];
         TinyAllocator(frames)
+    }
+
+    fn from_frames(frames: [Frame; 3]) -> TinyAllocator {
+        TinyAllocator([Some(frames[0]), Some(frames[1]), Some(frames[2])])
     }
 }
 

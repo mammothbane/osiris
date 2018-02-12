@@ -1,7 +1,6 @@
-use multiboot2::{MemoryAreaIter, MemoryArea};
-
 use memory::{Frame, FrameAllocator};
 use memory::frame::IFrame;
+use multiboot2::{MemoryArea, MemoryAreaIter};
 
 pub struct AreaFrameAllocator {
     next_free_frame: Frame,
@@ -75,6 +74,6 @@ impl FrameAllocator for AreaFrameAllocator {
     }
 
     fn release(&mut self, _: Frame) {
-        unimplemented!()
+        // leak
     }
 }
