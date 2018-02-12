@@ -26,7 +26,9 @@ pub type PhysicalAddr = usize;
 pub type VirtualAddr = usize;
 
 pub fn remap_kernel<A: FrameAllocator>(alloc: &mut A, boot_info: &BootInformation) -> ActivePageTable {
-    let mut temp_page = TemporaryPage::new(Page::new_from_index(0xcafebabe ), alloc);
+    use super::KERNEL_BASE;
+
+    let mut temp_page = TemporaryPage::new(Page::new_from_index(0xcafebabe), alloc);
 
     let mut active_table = unsafe { ActivePageTable::new() };
     let mut new_table = {
@@ -50,26 +52,48 @@ pub fn remap_kernel<A: FrameAllocator>(alloc: &mut A, boot_info: &BootInformatio
 
             let mut flags = EntryFlags::from_elf_section(section);
 
-            let start_frame = Frame::containing_addr(section.start_address());
-            let end_frame = Frame::containing_addr(section.end_address() - 1);
+            let section_start = Frame::containing_addr(section.start_address());
+            let section_end = Frame::containing_addr(section.end_address() - 1);
 
-            Frame::range_inclusive(start_frame, end_frame)
-                .for_each(|f| mapper.identity_map(f, flags, alloc));
+            Frame::range_inclusive(section_start, section_end)
+                .for_each(|f| {
+                    mapper.map_to(
+                        Page::containing_addr(KERNEL_BASE + f.start_addr()), f.clone(), flags, alloc
+                    );
+
+                    mapper.identity_map(f, flags, alloc);
+                });
         }
 
         let vga_buf_frame = Frame::containing_addr(0xb8000);
-        mapper.identity_map(vga_buf_frame, WRITABLE, alloc);
+        mapper.map_to(
+            Page::containing_addr(KERNEL_BASE + vga_buf_frame.start_addr()),
+            vga_buf_frame,
+            WRITABLE | PRESENT,
+            alloc
+        );
 
         let mb_start = Frame::containing_addr(boot_info.start_address());
         let mb_end = Frame::containing_addr(boot_info.end_address());
-        Frame::range_inclusive(mb_start, mb_end).for_each(|f| mapper.identity_map(f, PRESENT, alloc));
+        Frame::range_inclusive(mb_start, mb_end)
+            .for_each(|f| {
+                let page = Page::containing_addr(KERNEL_BASE + f.start_addr());
+                mapper.map_to(page, f.clone(), PRESENT, alloc);
+//                mapper.identity_map(f, PRESENT, alloc);
+            });
     });
 
     let old_table = active_table.switch(new_table);
+
+    unsafe {
+        use vga_buffer;
+        vga_buffer::update_vga_base(super::VGA_BASE + KERNEL_BASE);
+    }
+
     println!("kernel remapped.");
 
     let old_p4 = Page::containing_addr(
-         old_table.p4_frame().start_addr()
+        old_table.p4_frame().start_addr()
     );
 
     active_table.unmap(old_p4, alloc);
@@ -78,4 +102,22 @@ pub fn remap_kernel<A: FrameAllocator>(alloc: &mut A, boot_info: &BootInformatio
     active_table
 }
 
-
+//#[no_mangle]
+//#[link(name = "remap_cleanup")]
+//extern "C" fn cleanup() -> ! {
+//    unsafe {
+//        use vga_buffer;
+//        vga_buffer::update_vga_base(super::VGA_BASE + KERNEL_BASE);
+//    }
+//
+//    println!("kernel remapped.");
+//
+//    let old_p4 = Page::containing_addr(
+//         old_table.p4_frame().start_addr()
+//    );
+//
+//    active_table.unmap(old_p4, alloc);
+//    println!("guard page at {:#x}", old_p4.start_addr());
+//
+//    active_table
+//}

@@ -1,6 +1,7 @@
 #![feature(lang_items)]
 #![no_std]
 
+#![feature(asm)]
 #![feature(alloc)]
 #![feature(allocator_api)]
 #![feature(global_allocator)]
@@ -25,18 +26,23 @@ extern crate bit_field;
 #[macro_use] extern crate bitflags;
 #[macro_use] extern crate lazy_static;
 
+use linked_list_allocator::LockedHeap;
+use multiboot2::BootInformation;
+use self::memory::KERNEL_BASE;
+use spin::Once;
+
 #[macro_use]
 mod vga_buffer;
 mod memory;
 mod interrupts;
 
-use linked_list_allocator::LockedHeap;
-
-pub const HEAP_START: usize = 0o_000_001_000_000_0000;
+pub const HEAP_START: usize = KERNEL_BASE + 0o_000_001_000_000_0000;
 pub const HEAP_SIZE: usize = 100 * 1024;
 
 #[global_allocator]
 static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
+
+static BOOT_INFO: Once<&'static BootInformation> = Once::new();
 
 fn enable_nx() {
     use x86_64::registers::msr::{IA32_EFER, rdmsr, wrmsr};
@@ -53,26 +59,55 @@ fn enable_write_protect() {
     unsafe { cr0_write(cr0() | Cr0::WRITE_PROTECT) };
 }
 
-#[no_mangle]
-pub extern "C" fn rust_main(multiboot_info: usize) {
-    vga_buffer::clear_screen();
+fn enable_syscall() {
+    use x86_64::registers::msr::{IA32_EFER, rdmsr, wrmsr};
 
-    let boot_info = unsafe { multiboot2::load(multiboot_info) };
+    unsafe {
+        let efer = rdmsr(IA32_EFER);
+        wrmsr(IA32_EFER, 1 << 0);
+    }
+}
+
+//fn syscall(addr: VirtualAddr) {
+//    use x86_64::registers::msr::{IA32_LSTAR, IA32_STAR};
+//
+//    unsafe { asm!("syscall"); }
+//}
+
+extern "C" {
+    fn remap_stack(kern_base: u64);
+}
+
+#[no_mangle]
+pub extern "C" fn osiris_main(multiboot_info: usize) {
+    vga_buffer::clear_screen();
 
     enable_nx();
     enable_write_protect();
-    let mut memory_controller = memory::init(boot_info);
+
+    let mut memory_controller = memory::init(unsafe { multiboot2::load(multiboot_info) });
+
+    unsafe { remap_stack(KERNEL_BASE as u64); }
+
+    // TODO: unmap old kernel ELF
+
+    BOOT_INFO.call_once(|| {
+        unsafe { multiboot2::load(multiboot_info + KERNEL_BASE) }
+    });
 
     println!();
-
     unsafe {
         HEAP_ALLOCATOR.lock().init(HEAP_START, HEAP_START + HEAP_SIZE);
     }
 
     interrupts::init(&mut memory_controller);
 
+    enable_syscall();
+
+
     println!("\n\nHalting normally.");
     unsafe { x86_64::instructions::halt(); }
+
 }
 
 #[lang = "eh_personality"]

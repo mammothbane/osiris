@@ -1,7 +1,7 @@
 use multiboot2::BootInformation;
 pub use self::area_frame_allocator::AreaFrameAllocator;
 pub use self::frame::Frame;
-pub use self::paging::remap_kernel;
+pub use self::paging::{PhysicalAddr, remap_kernel, VirtualAddr};
 pub use self::stack_allocator::Stack;
 
 mod area_frame_allocator;
@@ -11,6 +11,8 @@ mod frame;
 pub mod heap_allocator;
 
 pub const PAGE_SIZE: usize = 4096;
+pub const KERNEL_BASE: VirtualAddr = 0xffff_8000_0000_0000; // higher half
+pub const VGA_BASE: usize = 0xb8000;
 
 pub fn init(boot_info: &BootInformation) -> MemoryController {
     assert_has_not_been_called!("memory::init must only be called once");
@@ -47,9 +49,16 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
     );
 
     let mut active_table = remap_kernel(&mut frame_allocator, boot_info);
+}
 
+pub fn finish_init(active_table: ActivePageTable) {
     use self::paging::Page;
-    use {HEAP_START, HEAP_SIZE};
+    use {HEAP_START, HEAP_SIZE, BOOT_INFO};
+
+    let mut frame_allocator = AreaFrameAllocator::new(
+        kernel_start as usize, kernel_end as usize,
+        boot_info.start_address(), boot_info.end_address(), mmap_tag.memory_areas()
+    );
 
     let heap_start_page = Page::containing_addr(HEAP_START);
     let heap_end_page = Page::containing_addr(HEAP_START + HEAP_SIZE - 1);
@@ -71,6 +80,33 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
         stack_allocator,
     }
 }
+
+//#[no_mangle]
+//#[link(name = "mem_init_cleanup")]
+//extern "C" fn cleanup(active_table: ActivePageTable) -> ! {
+//    use self::paging::Page;
+//    use {HEAP_START, HEAP_SIZE};
+//
+//    let heap_start_page = Page::containing_addr(HEAP_START);
+//    let heap_end_page = Page::containing_addr(HEAP_START + HEAP_SIZE - 1);
+//
+//    Page::range_inclusive(heap_start_page, heap_end_page)
+//        .for_each(|p| active_table.map(p, paging::WRITABLE, &mut frame_allocator));
+//
+//    let stack_allocator = {
+//        let stack_start = heap_end_page + 1;
+//        let stack_end = stack_start + 100;
+//        let stack_alloc_range = Page::range_inclusive(stack_start, stack_end);
+//
+//        stack_allocator::StackAllocator::new(stack_alloc_range)
+//    };
+//
+//    MemoryController {
+//        active_table,
+//        frame_allocator,
+//        stack_allocator,
+//    }
+//}
 
 pub trait FrameAllocator {
     fn alloc(&mut self) -> Option<Frame>;

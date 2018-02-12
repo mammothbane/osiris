@@ -12,5 +12,5 @@ long_mode_start:
     mov fs, ax
     mov gs, ax
 
-    extern rust_main
-    call rust_main
+    extern osiris_main
+    call osiris_main

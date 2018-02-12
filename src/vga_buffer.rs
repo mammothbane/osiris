@@ -1,8 +1,9 @@
-use core::ptr::Unique;
 use core::fmt;
-
-use volatile::Volatile;
+use core::ptr::Unique;
+use memory::VGA_BASE;
+use memory::VirtualAddr;
 use spin::Mutex;
+use volatile::Volatile;
 
 #[allow(dead_code)]
 #[repr(u8)]
@@ -120,8 +121,12 @@ impl fmt::Write for Writer {
 pub static WRITER: Mutex<Writer> = Mutex::new(Writer {
     column_position: 0,
     color: ColorCode::new(Color::LightGreen, Color::Black),
-    buf: unsafe { Unique::new_unchecked(0xb8000 as *mut _)},
+    buf: unsafe { Unique::new_unchecked(VGA_BASE as *mut _) },
 });
+
+pub unsafe fn update_vga_base(addr: VirtualAddr) {
+    WRITER.lock().buf = Unique::new_unchecked(addr as *mut _);
+}
 
 macro_rules! println {
     () => (print!("\n"));

@@ -1,11 +1,12 @@
+use core::marker::PhantomData;
+use core::ops::{Index, IndexMut};
 use memory::FrameAllocator;
 use memory::paging::entry::*;
 use memory::paging::ENTRY_COUNT;
-
-use core::ops::{Index, IndexMut};
-use core::marker::PhantomData;
+use memory::VirtualAddr;
 
 pub const P4: *mut Table<Level4> = 0xffffffff_fffff000 as *mut _;
+pub const TABLE_BASE: VirtualAddr = 0xffffff8_00000000;
 
 pub struct Table<L: TableLevel> {
     entries: [Entry; ENTRY_COUNT],
