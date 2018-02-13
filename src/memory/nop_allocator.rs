@@ -1,4 +1,4 @@
-use super::FrameAllocator;
+use super::{Frame, FrameAllocator};
 
 pub struct NopAllocator;
 

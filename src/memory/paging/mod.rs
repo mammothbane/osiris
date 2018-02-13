@@ -1,5 +1,5 @@
 use core::ops::{Deref, DerefMut};
-use memory::{Frame, FrameAllocator, PAGE_SIZE};
+use memory::{Frame, PAGE_SIZE};
 use memory::frame::IFrame;
 use multiboot2::BootInformation;
 pub use self::active_page_table::ActivePageTable;
@@ -29,12 +29,21 @@ pub type VirtualAddr = usize;
 pub fn remap_kernel(boot_info: &BootInformation) -> ActivePageTable {
     use super::{KERNEL_BASE, PAGE_SIZE};
 
-    let elf_sections_tag = boot_info.elf_sections_tag().expect("elf sections required");
+    let (kernel_start, kernel_end) = {
+        let elf_sections_tag = boot_info.elf_sections_tag().expect("elf sections required");
 
-    let kernel_end = elf_sections_tag.sections()
-        .filter(|s| s.is_allocated() && s.size > 0)
-        .map(|s| s.addr)
-        .max().unwrap();
+        let kernel_start = elf_sections_tag.sections()
+            .filter(|s| s.is_allocated() && s.size > 0)
+            .map(|s| s.addr)
+            .min().unwrap();
+
+        let kernel_end = elf_sections_tag.sections()
+            .filter(|s| s.is_allocated() && s.size > 0)
+            .map(|s| s.addr)
+            .max().unwrap();
+
+        (kernel_start as usize, kernel_end as usize)
+    };
 
     // TODO: this is super unsafe. at least check that these are in valid memory areas.
     let temp_frames = [
@@ -100,9 +109,16 @@ pub fn remap_kernel(boot_info: &BootInformation) -> ActivePageTable {
             });
     });
 
-    let old_table = active_table.switch(new_table);
+    let old_table = InactivePageTable::new_from_p4_frame(Frame::containing_addr(control_regs::cr3().0 as usize));
+
+    extern "C" {
+        // swaps active tables and bumps stack
+        fn relocate_kernel(new_ptl4: u64, kern_base: u64);
+    }
 
     unsafe {
+        relocate_kernel(new_table.p4_frame().start_addr() as u64, KERNEL_BASE as u64);
+
         use vga_buffer;
         vga_buffer::update_vga_base(super::VGA_BASE + KERNEL_BASE);
     }
@@ -113,7 +129,17 @@ pub fn remap_kernel(boot_info: &BootInformation) -> ActivePageTable {
         old_table.p4_frame().start_addr()
     );
 
-    active_table.unmap(old_p4, NopAllocator{});
+    let mut nop_alloc = NopAllocator{};
+
+    active_table.unmap(old_p4, &mut nop_alloc);
+
+    let kstart_frame = Page::containing_addr(kernel_start);
+    let kend_frame = Page::containing_addr(kernel_end);
+
+    Page::range_inclusive(kstart_frame, kend_frame)
+        .for_each(|p| {
+            active_table.unmap(p, &mut nop_alloc);
+        });
 
     active_table
 }

@@ -1,5 +1,4 @@
 use memory::frame::IFrame;
-use memory::KERNEL_BASE;
 use super::*;
 
 pub struct ActivePageTable {
@@ -54,18 +53,15 @@ impl ActivePageTable {
     }
 
     pub fn switch(&mut self, new_table: InactivePageTable) -> InactivePageTable {
+        use x86_64::PhysicalAddress;
         use x86_64::registers::control_regs;
 
         let old_table = InactivePageTable::new_from_p4_frame(Frame::containing_addr(control_regs::cr3().0 as usize));
 
         unsafe {
-            asm!("mov $0, %cr3\n\
-                  addq $1, %rsp\n\
-                  addq $1, %rbp"
-                  :
-                  : "r"(new_table.p4_frame().start_addr() as u64), "r"(KERNEL_BASE)
-                  : "memory"
-                  : "volatile");
+            control_regs::cr3_write(PhysicalAddress(
+                new_table.p4_frame().start_addr() as u64
+            ))
         }
 
         old_table

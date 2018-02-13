@@ -74,9 +74,7 @@ fn enable_syscall() {
 //    unsafe { asm!("syscall"); }
 //}
 
-extern "C" {
-    fn remap_stack(kern_base: u64);
-}
+
 
 #[no_mangle]
 pub extern "C" fn osiris_main(multiboot_info: usize) {
@@ -85,11 +83,7 @@ pub extern "C" fn osiris_main(multiboot_info: usize) {
     enable_nx();
     enable_write_protect();
 
-    let mut active_page_table = memory::init(unsafe { multiboot2::load(multiboot_info) });
-
-    unsafe { remap_stack(KERNEL_BASE as u64); }
-
-    // TODO: unmap old kernel ELF
+    let mut memory_controller= memory::init(unsafe { multiboot2::load(multiboot_info) });
 
     BOOT_INFO.call_once(|| {
         unsafe { multiboot2::load(multiboot_info + KERNEL_BASE) }
