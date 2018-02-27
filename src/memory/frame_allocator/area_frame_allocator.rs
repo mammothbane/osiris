@@ -1,9 +1,9 @@
 use memory::{Frame, FrameAllocator};
-use memory::FrameSet;
+use memory::frame_set::FrameSetMut;
 use memory::frame::IFrame;
 use multiboot2::{MemoryArea, MemoryAreaIter};
 
-pub struct AreaFrameAllocator<T: FrameSet> {
+pub struct AreaFrameAllocator<T: FrameSetMut> {
     next_free_frame: Frame,
     current_area: Option<&'static MemoryArea>,
     areas: MemoryAreaIter,
@@ -14,13 +14,13 @@ pub struct AreaFrameAllocator<T: FrameSet> {
     frame_set: T,
 }
 
-impl <T> AreaFrameAllocator<T> {
+impl <T: FrameSetMut> AreaFrameAllocator<T> {
     pub fn new(
         kern_start: usize, kern_end: usize,
         mb_start: usize, mb_end: usize,
         mem_areas: MemoryAreaIter,
         frame_set: T,
-    ) -> AreaFrameAllocator<StackFrameSet> {
+    ) -> AreaFrameAllocator<T> {
         let mut allocator = AreaFrameAllocator {
             next_free_frame: Frame::containing_addr(0),
             current_area: None,
@@ -51,12 +51,13 @@ impl <T> AreaFrameAllocator<T> {
     }
 }
 
-impl <T> FrameAllocator for AreaFrameAllocator<T> {
+impl <T: FrameSetMut> FrameAllocator for AreaFrameAllocator<T> {
     type FrameSetImpl = T;
 
     fn alloc(&mut self) -> Option<Frame> {
         self.current_area.and_then(|area| {
             let frame = Frame::new(self.next_free_frame.index());
+
             let current_area_last_frame = {
                 let addr = area.base_addr + area.length - 1;
                 Frame::containing_addr(addr as usize)
@@ -82,7 +83,7 @@ impl <T> FrameAllocator for AreaFrameAllocator<T> {
     }
 
     fn release(&mut self, f: Frame) {
-        self.frame_set.remove(f.index())
+        self.frame_set.remove(f.index());
     }
 
     fn allocated_frames(&self) -> T {

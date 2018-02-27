@@ -17,7 +17,12 @@ once = "0.3.3"
 linked_list_allocator = "0.5.0"
 bit_field = "0.7.0"
 failure = { version = "0.1.1", default-features = false, features = ["derive"] }
+failure_derive = { version = "0.1.1", default-features = false }
+itertools = { version = "0.7.6", default-features = false }
 
 [dependencies.lazy_static]
 version = "0.2.4"
 features = ["spin_no_std"]
+
+[patch.crates-io]
+failure = { git = "https://github.com/mammothbane/failure" }

@@ -1,4 +1,5 @@
 use memory::{Frame, FrameAllocator};
+use memory::frame_set::EmptyFrameSet;
 use super::{ActivePageTable, Page, VirtualAddr};
 use super::table::{Level1, Table};
 
@@ -61,6 +62,8 @@ impl TinyAllocator {
 }
 
 impl FrameAllocator for TinyAllocator {
+    type FrameSetImpl = EmptyFrameSet;
+
     fn alloc(&mut self) -> Option<Frame> {
         self.0.iter_mut().find(|x| x.is_some()).and_then(|x| x.take())
     }
@@ -69,5 +72,9 @@ impl FrameAllocator for TinyAllocator {
         self.0.iter_mut().find(|x| x.is_none())
             .map(|x| *x = Some(frame))
             .or_else(|| { panic!("Tiny allocator can only hold 3 frames")});
+    }
+
+    fn allocated_frames(&self) -> Self::FrameSetImpl {
+        EmptyFrameSet
     }
 }

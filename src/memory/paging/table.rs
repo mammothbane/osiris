@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
-use memory::FrameAllocator;
+use memory::Frame;
+use memory::frame_allocator::FrameAllocator;
 use memory::paging::entry::*;
 use memory::paging::ENTRY_COUNT;
 use memory::VirtualAddr;
@@ -17,9 +18,13 @@ impl<L> Table<L> where L: TableLevel {
     pub fn zero(&mut self) {
         self.entries.iter_mut().for_each(|x| x.set_unused());
     }
+
+    pub fn iter(&self) -> impl Iterator<Item=&Entry> {
+        self.entries.iter()
+    }
 }
 
-impl <L> Table<L> where L: HierarchicalLevel {
+impl <L: HierarchicalLevel> Table<L> {
     #[inline]
     fn next_table_addr(&self, index: usize) -> Option<usize> {
         let entry_flags = self[index].flags();
@@ -52,6 +57,14 @@ impl <L> Table<L> where L: HierarchicalLevel {
             self.next_table_mut(index).unwrap().zero();
         }
         self.next_table_mut(index).unwrap()
+    }
+
+    pub fn children(&self) -> impl Iterator<Item=&Table<L::NextLevel>> {
+        self
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| e.flags().contains(PRESENT))
+            .filter_map(|(i, _)| self.next_table(i))
     }
 }
 

@@ -1,6 +1,10 @@
 use core::ptr::Unique;
+use core::convert::Into;
+
 use memory::{Frame, FrameAllocator, PAGE_SIZE};
 use memory::frame::IFrame;
+use memory::frame_set::FrameSet;
+
 use super::{ENTRY_COUNT, Page, PhysicalAddr, VirtualAddr};
 use super::entry::*;
 use super::page::IPage;
@@ -116,5 +120,31 @@ impl Mapper {
             .and_then(|p2| p2.next_table(page.p2_index()))
             .and_then(|p1| p1[page.p1_index()].pointed_frame())
             .or_else(huge_page)
+    }
+
+    /// Scan the page table and return allocated frames. This is unsafe for several reasons:
+    ///     - there could potentially be garbage in the table
+    ///     - we could run out of memory doing this
+    ///     - we're inferring things from memory that we maybe ought not to
+    /// NOTE: we must have a heap before calling this function
+    pub unsafe fn recover_frames(&self) -> impl FrameSet {
+        use memory::frame_set::VecFrameSet;
+        use alloc::Vec;
+        use core::convert::From;
+
+        let p4_frames = self.p4().iter().filter_map(|e| e.pointed_frame());
+        let p3s = self.p4().children();
+
+        let p3_frames = p3s.flat_map(|p3| p3.iter().filter_map(|e| e.pointed_frame()));
+        let p2s = p3s.flat_map(|p3| p3.children());
+
+        let p2_frames = p2s.flat_map(|p2| p2.iter().filter_map(|e| e.pointed_frame()));
+        let p1s = p2s.flat_map(|p2| p2.children());
+
+        let p1_frames = p1s.flat_map(|p1| p1.iter().filter_map(|e| e.pointed_frame()));
+
+        let result = p4_frames.chain(p3_frames).chain(p2_frames).chain(p1_frames).collect::<Vec<_>>();
+
+        VecFrameSet::from(result)
     }
 }

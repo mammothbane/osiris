@@ -10,7 +10,8 @@ use self::mapper::Mapper;
 pub use self::page::{Page, PageIter};
 use self::page::IPage;
 use self::temporary_page::TemporaryPage;
-use super::NopAllocator;
+use super::AreaFrameAllocator;
+use super::StackFrameSet;
 
 mod page;
 mod entry;
@@ -45,16 +46,20 @@ pub fn remap_kernel(boot_info: &BootInformation) {
         (kernel_start as usize, kernel_end as usize)
     };
 
-    // TODO: this is super unsafe. at least check that these are in valid memory areas.
-    let temp_frames = [
-        Frame::containing_addr(kernel_end as usize + PAGE_SIZE),
-        Frame::containing_addr(kernel_end as usize + PAGE_SIZE*2),
-        Frame::containing_addr(kernel_end as usize + PAGE_SIZE*3)
-    ];
+    use core::mem;
+    let mut frame_ary: [Frame; 32] = unsafe { mem::uninitialized() };
+    let frame_set = StackFrameSet::new(&mut frame_ary);
 
-    let mut temp_page = TemporaryPage::from_frames(
+    let mut alloc = AreaFrameAllocator::new(
+        kernel_start, kernel_end,
+        boot_info.start_address(), boot_info.end_address(),
+        boot_info.memory_map_tag().unwrap().memory_areas(),
+        frame_set,
+    );
+
+    let mut temp_page = TemporaryPage::new(
         Page::new_from_index(0xcafebabe),
-        temp_frames
+        &mut alloc
     );
 
     // TODO: see above
@@ -85,10 +90,10 @@ pub fn remap_kernel(boot_info: &BootInformation) {
             Frame::range_inclusive(section_start, section_end)
                 .for_each(|f| {
                     mapper.map_to(
-                        Page::containing_addr(KERNEL_BASE + f.start_addr()), f.clone(), flags, alloc
+                        Page::containing_addr(KERNEL_BASE + f.start_addr()), f.clone(), flags, &mut alloc
                     );
 
-                    mapper.identity_map(f, flags, alloc);
+                    mapper.identity_map(f, flags, &mut alloc);
                 });
         }
 
@@ -97,7 +102,7 @@ pub fn remap_kernel(boot_info: &BootInformation) {
             Page::containing_addr(KERNEL_BASE + vga_buf_frame.start_addr()),
             vga_buf_frame,
             WRITABLE | PRESENT,
-            alloc
+            &mut alloc
         );
 
         let mb_start = Frame::containing_addr(boot_info.start_address());
@@ -105,7 +110,7 @@ pub fn remap_kernel(boot_info: &BootInformation) {
         Frame::range_inclusive(mb_start, mb_end)
             .for_each(|f| {
                 let page = Page::containing_addr(KERNEL_BASE + f.start_addr());
-                mapper.map_to(page, f.clone(), PRESENT, alloc);
+                mapper.map_to(page, f.clone(), PRESENT, &mut alloc);
             });
     });
 
@@ -130,15 +135,13 @@ pub fn remap_kernel(boot_info: &BootInformation) {
         old_table.p4_frame().start_addr()
     );
 
-    let mut nop_alloc = NopAllocator{};
-
-    active_table.unmap(old_p4, &mut nop_alloc);
+    active_table.unmap(old_p4, &mut alloc);
 
     let kstart_frame = Page::containing_addr(kernel_start);
     let kend_frame = Page::containing_addr(kernel_end);
 
     Page::range_inclusive(kstart_frame, kend_frame)
         .for_each(|p| {
-            active_table.unmap(p, &mut nop_alloc);
+            active_table.unmap(p, &mut alloc);
         });
 }
