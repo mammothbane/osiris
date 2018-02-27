@@ -12,19 +12,19 @@
 #![feature(conservative_impl_trait)]
 #![feature(universal_impl_trait)]
 
-extern crate rlibc;
-extern crate volatile;
-extern crate spin;
-extern crate multiboot2;
-extern crate x86_64;
-extern crate linked_list_allocator;
-extern crate bit_field;
-
 #[allow(unused_imports)]
 #[macro_use] extern crate alloc;
-#[macro_use] extern crate once;
+extern crate bit_field;
 #[macro_use] extern crate bitflags;
+#[macro_use] extern crate failure;
 #[macro_use] extern crate lazy_static;
+extern crate linked_list_allocator;
+extern crate multiboot2;
+#[macro_use] extern crate once;
+extern crate rlibc;
+extern crate spin;
+extern crate volatile;
+extern crate x86_64;
 
 use linked_list_allocator::LockedHeap;
 use multiboot2::BootInformation;
@@ -75,16 +75,28 @@ fn enable_syscall() {
 //}
 
 
-
 #[no_mangle]
-pub extern "C" fn osiris_main(multiboot_info: usize) {
+pub extern "C" fn osiris_preinit(multiboot_info: usize) {
     vga_buffer::clear_screen();
 
     enable_nx();
     enable_write_protect();
 
-    let mut memory_controller= memory::init(unsafe { multiboot2::load(multiboot_info) });
+    memory::init(unsafe { multiboot2::load(multiboot_info) });
 
+    unsafe {
+        asm!("mov $0, %rdi
+              jmp osiris_main"
+            :
+            : "r"(multiboot_info)
+            : "rdi"
+        )
+    }
+}
+
+
+#[no_mangle]
+pub extern "C" fn osiris_main(multiboot_info: usize) {
     BOOT_INFO.call_once(|| {
         unsafe { multiboot2::load(multiboot_info + KERNEL_BASE) }
     });

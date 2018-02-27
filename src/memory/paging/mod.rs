@@ -26,7 +26,7 @@ const ENTRY_COUNT: usize = 512;
 pub type PhysicalAddr = usize;
 pub type VirtualAddr = usize;
 
-pub fn remap_kernel(boot_info: &BootInformation) -> ActivePageTable {
+pub fn remap_kernel(boot_info: &BootInformation) {
     use super::{KERNEL_BASE, PAGE_SIZE};
 
     let (kernel_start, kernel_end) = {
@@ -109,10 +109,11 @@ pub fn remap_kernel(boot_info: &BootInformation) -> ActivePageTable {
             });
     });
 
+    use x86_64::registers::control_regs;
     let old_table = InactivePageTable::new_from_p4_frame(Frame::containing_addr(control_regs::cr3().0 as usize));
 
     extern "C" {
-        // swaps active tables and bumps stack
+        /// swaps active tables and bumps stack
         fn relocate_kernel(new_ptl4: u64, kern_base: u64);
     }
 
@@ -140,6 +141,4 @@ pub fn remap_kernel(boot_info: &BootInformation) -> ActivePageTable {
         .for_each(|p| {
             active_table.unmap(p, &mut nop_alloc);
         });
-
-    active_table
 }

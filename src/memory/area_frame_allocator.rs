@@ -1,8 +1,9 @@
 use memory::{Frame, FrameAllocator};
+use memory::FrameSet;
 use memory::frame::IFrame;
 use multiboot2::{MemoryArea, MemoryAreaIter};
 
-pub struct AreaFrameAllocator {
+pub struct AreaFrameAllocator<T: FrameSet> {
     next_free_frame: Frame,
     current_area: Option<&'static MemoryArea>,
     areas: MemoryAreaIter,
@@ -10,14 +11,16 @@ pub struct AreaFrameAllocator {
     kernel_end: Frame,
     multiboot_start: Frame,
     multiboot_end: Frame,
+    frame_set: T,
 }
 
-impl AreaFrameAllocator {
+impl <T> AreaFrameAllocator<T> {
     pub fn new(
         kern_start: usize, kern_end: usize,
         mb_start: usize, mb_end: usize,
-        mem_areas: MemoryAreaIter
-    ) -> AreaFrameAllocator {
+        mem_areas: MemoryAreaIter,
+        frame_set: T,
+    ) -> AreaFrameAllocator<StackFrameSet> {
         let mut allocator = AreaFrameAllocator {
             next_free_frame: Frame::containing_addr(0),
             current_area: None,
@@ -26,6 +29,7 @@ impl AreaFrameAllocator {
             kernel_end: Frame::containing_addr(kern_end),
             multiboot_start: Frame::containing_addr(mb_start),
             multiboot_end: Frame::containing_addr(mb_end),
+            frame_set,
         };
 
         allocator.choose_next_area();
@@ -47,7 +51,9 @@ impl AreaFrameAllocator {
     }
 }
 
-impl FrameAllocator for AreaFrameAllocator {
+impl <T> FrameAllocator for AreaFrameAllocator<T> {
+    type FrameSetImpl = T;
+
     fn alloc(&mut self) -> Option<Frame> {
         self.current_area.and_then(|area| {
             let frame = Frame::new(self.next_free_frame.index());
@@ -66,6 +72,8 @@ impl FrameAllocator for AreaFrameAllocator {
                 let index = self.next_free_frame.index();
 
                 self.next_free_frame.set_index(index + 1);
+
+                self.frame_set.add(frame);
                 return Some(frame);
             }
 
@@ -73,7 +81,11 @@ impl FrameAllocator for AreaFrameAllocator {
         })
     }
 
-    fn release(&mut self, _: Frame) {
-        // leak
+    fn release(&mut self, f: Frame) {
+        self.frame_set.remove(f.index())
+    }
+
+    fn allocated_frames(&self) -> T {
+        self.frame_set
     }
 }

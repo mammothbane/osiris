@@ -1,23 +1,30 @@
 use multiboot2::BootInformation;
 pub use self::area_frame_allocator::AreaFrameAllocator;
 pub use self::frame::Frame;
+pub use self::frame_allocator::*;
+pub use self::frame_set::*;
 pub use self::nop_allocator::NopAllocator;
 pub use self::paging::{PhysicalAddr, remap_kernel, VirtualAddr};
 pub use self::stack_allocator::Stack;
+pub use self::stack_frame_set::StackFrameSet;
 
 mod area_frame_allocator;
 mod paging;
 mod stack_allocator;
 mod frame;
 mod nop_allocator;
+mod frame_set;
+mod stack_frame_set;
+mod frame_allocator;
 pub mod heap_allocator;
 
 pub const PAGE_SIZE: usize = 4096;
 pub const KERNEL_BASE: VirtualAddr = 0xffff_8000_0000_0000; // higher half
 pub const VGA_BASE: usize = 0xb8000;
 
-pub fn init(boot_info: &BootInformation) -> MemoryController {
-    assert_has_not_been_called!("memory::init must only be called once");
+pub fn preinit(boot_info: &BootInformation) {
+    assert_has_not_been_called!("memory::preinit must only be called once");
+
     let mmap_tag = boot_info.memory_map_tag().expect("memory map tag required");
 
     println!("memory areas:");
@@ -45,7 +52,11 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
     println!("\nkernel start: {:#x}, end: {:#x}", kernel_start, kernel_end);
     println!("multiboot start: {:#x}, end: {:#x}", boot_info.start_address(), boot_info.end_address());
 
-    let mut active_table = remap_kernel(boot_info);
+    remap_kernel(boot_info);
+}
+
+pub fn init(boot_info: &BootInformation) -> MemoryController {
+    assert_has_not_been_called!("memory::init must only be called once");
 
     use self::paging::Page;
     use {HEAP_START, HEAP_SIZE};
@@ -77,11 +88,6 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
         frame_allocator,
         stack_allocator,
     }
-}
-
-pub trait FrameAllocator {
-    fn alloc(&mut self) -> Option<Frame>;
-    fn release(&mut self, frame: Frame);
 }
 
 pub struct MemoryController {

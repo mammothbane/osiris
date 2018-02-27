@@ -50,7 +50,7 @@ impl Mapper {
             .and_then(|p2| p2.next_table_mut(page.p2_index()))
             .expect("no support for huge pages");
 
-        let _frame = p1[page.p1_index()].pointed_frame().unwrap();
+        let frame = p1[page.p1_index()].pointed_frame().unwrap();
         p1[page.p1_index()].set_unused();
 
         use x86_64::instructions::tlb;
