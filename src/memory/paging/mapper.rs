@@ -29,22 +29,22 @@ impl Mapper {
         unsafe { self.p4.as_mut() }
     }
 
-    pub fn map<A>(&mut self, page: Page, flags: EntryFlags, allocator: &mut A)
-        where A: FrameAllocator
+    pub fn map<'a, A>(&mut self, page: Page, flags: EntryFlags, allocator: &mut A)
+        where A: FrameAllocator<'a>
     {
         let frame = allocator.alloc().expect("no free frames");
         self.map_to(page, frame, flags, allocator);
     }
 
-    pub fn identity_map<A>(&mut self, frame: Frame, flags: EntryFlags, alloc: &mut A)
-        where A: FrameAllocator
+    pub fn identity_map<'a, A>(&mut self, frame: Frame, flags: EntryFlags, alloc: &mut A)
+        where A: FrameAllocator<'a>
     {
         let page = Page::containing_addr(frame.start_addr());
         self.map_to(page, frame, flags, alloc)
     }
 
-    pub fn unmap<A>(&mut self, page: Page, allocator: &mut A)
-        where A: FrameAllocator
+    pub fn unmap<'a, A>(&mut self, page: Page, allocator: &mut A)
+        where A: FrameAllocator<'a>
     {
         assert!(self.translate(page.start_addr()).is_some());
 
@@ -67,7 +67,7 @@ impl Mapper {
         allocator.release(frame);
     }
 
-    pub fn map_to<A>(&mut self, page: Page, frame: Frame, flags: EntryFlags, allocator: &mut A) where A: FrameAllocator {
+    pub fn map_to<'a, A>(&mut self, page: Page, frame: Frame, flags: EntryFlags, allocator: &mut A) where A: FrameAllocator<'a> {
         let p3 = self.p4_mut().next_table_create(page.p4_index(), allocator);
         let p2 = p3.next_table_create(page.p3_index(), allocator);
         let p1 = p2.next_table_create(page.p2_index(), allocator);

@@ -46,8 +46,8 @@ impl <L: HierarchicalLevel> Table<L> {
             .map(|addr| unsafe { &mut *(addr as *mut _) })
     }
 
-    pub fn next_table_create<A>(&mut self, index: usize, allocator: &mut A) -> &mut Table<L::NextLevel>
-        where A: FrameAllocator
+    pub fn next_table_create<'a, A>(&mut self, index: usize, allocator: &mut A) -> &mut Table<L::NextLevel>
+        where A: FrameAllocator<'a>
     {
         if self.next_table(index).is_none() {
             assert!(!self.entries[index].flags().contains(HUGE_PAGE),

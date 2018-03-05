@@ -3,7 +3,7 @@ use memory::frame_set::FrameSetMut;
 use memory::frame::IFrame;
 use multiboot2::{MemoryArea, MemoryAreaIter};
 
-pub struct AreaFrameAllocator<T: FrameSetMut> {
+pub struct AreaFrameAllocator<T> {
     next_free_frame: Frame,
     current_area: Option<&'static MemoryArea>,
     areas: MemoryAreaIter,
@@ -14,7 +14,7 @@ pub struct AreaFrameAllocator<T: FrameSetMut> {
     frame_set: T,
 }
 
-impl <T: FrameSetMut> AreaFrameAllocator<T> {
+impl <'a, T: FrameSetMut<'a>> AreaFrameAllocator<T> {
     pub fn new(
         kern_start: usize, kern_end: usize,
         mb_start: usize, mb_end: usize,
@@ -51,8 +51,8 @@ impl <T: FrameSetMut> AreaFrameAllocator<T> {
     }
 }
 
-impl <T: FrameSetMut> FrameAllocator for AreaFrameAllocator<T> {
-    type FrameSetImpl = T;
+impl <'a, T: FrameSetMut<'a>> FrameAllocator<'a> for AreaFrameAllocator<T> {
+    type FrameIter = T::Iter;
 
     fn alloc(&mut self) -> Option<Frame> {
         self.current_area.and_then(|area| {
@@ -86,7 +86,7 @@ impl <T: FrameSetMut> FrameAllocator for AreaFrameAllocator<T> {
         self.frame_set.remove(f.index());
     }
 
-    fn allocated_frames(&self) -> T {
-        self.frame_set
+    fn allocated_frames(&self) -> T::Iter {
+        self.frame_set.iter()
     }
 }

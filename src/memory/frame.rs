@@ -1,16 +1,16 @@
 use super::PAGE_SIZE;
 use super::paging::PhysicalAddr;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+// TODO: see if we can remove Clone derive here
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Frame {
     index: usize,
 }
 
-pub trait IFrame {
+pub trait IFrame : Clone {
     fn new(index: usize) -> Frame;
     fn containing_addr(addr: usize) -> Frame;
     fn start_addr(&self) -> PhysicalAddr;
-    fn clone(&self) -> Frame;
     fn range_inclusive(start: Frame, end: Frame) -> FrameIter;
     fn index(&self) -> usize;
     fn set_index(&mut self, new_index: usize);
@@ -27,10 +27,6 @@ impl IFrame for Frame {
 
     fn start_addr(&self) -> PhysicalAddr {
         self.index * PAGE_SIZE
-    }
-
-    fn clone(&self) -> Frame {
-        Frame { index: self.index }
     }
 
     fn range_inclusive(start: Frame, end: Frame) -> FrameIter {

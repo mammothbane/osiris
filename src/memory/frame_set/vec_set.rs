@@ -35,13 +35,19 @@ impl <T: Into<Vec<Frame>>> From<T> for VecFrameSet {
     }
 }
 
-impl FrameSet for VecFrameSet {
+impl <'a> FrameSet<'a> for VecFrameSet {
+    type Iter = ::core::slice::Iter<'a, Frame>;
+
     fn contains(&self, frame: &Frame) -> bool {
         self.frames.contains(frame)
     }
+
+    fn iter(&self) -> Self::Iter {
+        self.frames.iter()
+    }
 }
 
-impl FrameSetMut for VecFrameSet {
+impl <'a> FrameSetMut<'a> for VecFrameSet {
     type Err = VecFrameSetErr;
 
     fn add(&mut self, frame: Frame) -> Result<(), VecFrameSetErr> {
@@ -55,10 +61,11 @@ impl FrameSetMut for VecFrameSet {
                 .enumerate()
                 .find(|(_, f)| f.index() == frame_index)
                 .into_result()
+                .map(|(idx, _)| idx)
         };
 
         result
-            .map(|(idx, _)| self.frames.remove(idx))
+            .map(|idx| self.frames.remove(idx))
             .map_err(|_| VecFrameSetErr::InvalidFrame { index: frame_index })
     }
 }

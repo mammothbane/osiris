@@ -32,13 +32,19 @@ impl <'a> StackFrameSet<'a> {
     }
 }
 
-impl <'a> FrameSet for StackFrameSet<'a> {
+impl <'a> FrameSet<'a> for StackFrameSet<'a> {
+    type Iter = ::core::slice::Iter<'a, Frame>;
+
     fn contains(&self, frame: &Frame) -> bool {
         (&self.ary[0..self.current_index]).contains(frame)
     }
+
+    fn iter(&self) -> Self::Iter {
+        self.ary.iter()
+    }
 }
 
-impl <'a> FrameSetMut for StackFrameSet<'a> {
+impl <'a> FrameSetMut<'a> for StackFrameSet<'a> {
     type Err = StackFrameSetError;
 
     fn add(&mut self, frame: Frame) -> Result<(), StackFrameSetError> {
