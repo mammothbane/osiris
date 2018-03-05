@@ -3,6 +3,7 @@ use multiboot2::ElfSection;
 use memory::Frame;
 use memory::frame::IFrame;
 
+#[derive(Debug)]
 pub struct Entry(u64);
 
 impl Entry {

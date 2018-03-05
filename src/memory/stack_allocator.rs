@@ -10,7 +10,7 @@ impl StackAllocator {
         StackAllocator { range: page_range }
     }
 
-    pub fn alloc<'a, A: FrameAllocator<'a>>(&mut self,
+    pub fn alloc<A: FrameAllocator>(&mut self,
                                     active_table: &mut ActivePageTable,
                                     frame_allocator: &mut A,
                                     size_in_pages: usize) -> Option<Stack> {

@@ -1,5 +1,7 @@
 use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
+use alloc::Vec;
+
 use memory::Frame;
 use memory::frame_allocator::FrameAllocator;
 use memory::paging::entry::*;
@@ -19,7 +21,7 @@ impl<L> Table<L> where L: TableLevel {
         self.entries.iter_mut().for_each(|x| x.set_unused());
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=&Entry> {
+    pub fn iter(&self) -> impl Iterator<Item=&Entry> + Clone {
         self.entries.iter()
     }
 }
@@ -46,8 +48,8 @@ impl <L: HierarchicalLevel> Table<L> {
             .map(|addr| unsafe { &mut *(addr as *mut _) })
     }
 
-    pub fn next_table_create<'a, A>(&mut self, index: usize, allocator: &mut A) -> &mut Table<L::NextLevel>
-        where A: FrameAllocator<'a>
+    pub fn next_table_create<A>(&mut self, index: usize, allocator: &mut A) -> &mut Table<L::NextLevel>
+        where A: FrameAllocator
     {
         if self.next_table(index).is_none() {
             assert!(!self.entries[index].flags().contains(HUGE_PAGE),
@@ -59,12 +61,13 @@ impl <L: HierarchicalLevel> Table<L> {
         self.next_table_mut(index).unwrap()
     }
 
-    pub fn children(&self) -> impl Iterator<Item=&Table<L::NextLevel>> {
+    pub fn children(&self) -> Vec<&Table<L::NextLevel>> {
         self
             .iter()
             .enumerate()
             .filter(|(_, e)| e.flags().contains(PRESENT))
             .filter_map(|(i, _)| self.next_table(i))
+            .collect()
     }
 }
 

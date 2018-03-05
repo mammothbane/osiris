@@ -14,7 +14,7 @@ pub struct AreaFrameAllocator<T> {
     frame_set: T,
 }
 
-impl <'a, T: FrameSetMut<'a>> AreaFrameAllocator<T> {
+impl <T: FrameSetMut> AreaFrameAllocator<T> {
     pub fn new(
         kern_start: usize, kern_end: usize,
         mb_start: usize, mb_end: usize,
@@ -51,8 +51,8 @@ impl <'a, T: FrameSetMut<'a>> AreaFrameAllocator<T> {
     }
 }
 
-impl <'a, T: FrameSetMut<'a>> FrameAllocator<'a> for AreaFrameAllocator<T> {
-    type FrameIter = T::Iter;
+impl <T: FrameSetMut> FrameAllocator for AreaFrameAllocator<T> {
+    type FrameSetImpl = T;
 
     fn alloc(&mut self) -> Option<Frame> {
         self.current_area.and_then(|area| {
@@ -74,7 +74,7 @@ impl <'a, T: FrameSetMut<'a>> FrameAllocator<'a> for AreaFrameAllocator<T> {
 
                 self.next_free_frame.set_index(index + 1);
 
-                self.frame_set.add(frame);
+                self.frame_set.add(frame.clone());
                 return Some(frame);
             }
 
@@ -86,7 +86,7 @@ impl <'a, T: FrameSetMut<'a>> FrameAllocator<'a> for AreaFrameAllocator<T> {
         self.frame_set.remove(f.index());
     }
 
-    fn allocated_frames(&self) -> T::Iter {
-        self.frame_set.iter()
+    fn allocated_frames(self) -> T {
+        self.frame_set
     }
 }

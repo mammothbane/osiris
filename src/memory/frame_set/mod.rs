@@ -8,14 +8,11 @@ pub use self::stack_set::*;
 pub use self::empty_set::*;
 pub use self::vec_set::*;
 
-pub trait FrameSet<'a> {
-    type Iter : Iterator<Item=&'a Frame>;
-
+pub trait FrameSet {
     fn contains(&self, frame: &Frame) -> bool;
-    fn iter(&self) -> Self::Iter;
 }
 
-pub trait FrameSetMut<'a> : FrameSet<'a> {
+pub trait FrameSetMut : FrameSet {
     type Err;
 
     fn add(&mut self, frame: Frame) -> Result<(), Self::Err>;

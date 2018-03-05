@@ -29,22 +29,22 @@ impl Mapper {
         unsafe { self.p4.as_mut() }
     }
 
-    pub fn map<'a, A>(&mut self, page: Page, flags: EntryFlags, allocator: &mut A)
-        where A: FrameAllocator<'a>
+    pub fn map<A>(&mut self, page: Page, flags: EntryFlags, allocator: &mut A)
+        where A: FrameAllocator
     {
         let frame = allocator.alloc().expect("no free frames");
         self.map_to(page, frame, flags, allocator);
     }
 
-    pub fn identity_map<'a, A>(&mut self, frame: Frame, flags: EntryFlags, alloc: &mut A)
-        where A: FrameAllocator<'a>
+    pub fn identity_map<A>(&mut self, frame: Frame, flags: EntryFlags, alloc: &mut A)
+        where A: FrameAllocator
     {
         let page = Page::containing_addr(frame.start_addr());
         self.map_to(page, frame, flags, alloc)
     }
 
-    pub fn unmap<'a, A>(&mut self, page: Page, allocator: &mut A)
-        where A: FrameAllocator<'a>
+    pub fn unmap<A>(&mut self, page: Page, allocator: &mut A)
+        where A: FrameAllocator
     {
         assert!(self.translate(page.start_addr()).is_some());
 
@@ -67,7 +67,7 @@ impl Mapper {
         allocator.release(frame);
     }
 
-    pub fn map_to<'a, A>(&mut self, page: Page, frame: Frame, flags: EntryFlags, allocator: &mut A) where A: FrameAllocator<'a> {
+    pub fn map_to<A>(&mut self, page: Page, frame: Frame, flags: EntryFlags, allocator: &mut A) where A: FrameAllocator {
         let p3 = self.p4_mut().next_table_create(page.p4_index(), allocator);
         let p2 = p3.next_table_create(page.p3_index(), allocator);
         let p1 = p2.next_table_create(page.p2_index(), allocator);
@@ -132,14 +132,16 @@ impl Mapper {
         use alloc::Vec;
         use core::convert::From;
 
+        // TODO: optimize to reduce allocation
+
         let p4_frames = self.p4().iter().filter_map(|e| e.pointed_frame());
         let p3s = self.p4().children();
 
-        let p3_frames = p3s.flat_map(|p3| p3.iter().filter_map(|e| e.pointed_frame()));
-        let p2s = p3s.flat_map(|p3| p3.children());
+        let p3_frames = p3s.iter().flat_map(|p3| p3.iter().filter_map(|e| e.pointed_frame()));
+        let p2s = p3s.iter().flat_map(|p3| p3.children()).collect::<Vec<&Table<_>>>();
 
-        let p2_frames = p2s.flat_map(|p2| p2.iter().filter_map(|e| e.pointed_frame()));
-        let p1s = p2s.flat_map(|p2| p2.children());
+        let p2_frames = p2s.iter().flat_map(|p2| p2.iter().filter_map(|e| e.pointed_frame()));
+        let p1s = p2s.iter().flat_map(|p2| p2.children());
 
         let p1_frames = p1s.flat_map(|p1| p1.iter().filter_map(|e| e.pointed_frame()));
 

@@ -11,8 +11,8 @@ pub struct TemporaryPage {
 struct TinyAllocator([Option<Frame>; 3]);
 
 impl TemporaryPage {
-    pub fn new<'a, A>(page: Page, alloc: &mut A) -> TemporaryPage
-        where A: FrameAllocator<'a>
+    pub fn new<A>(page: Page, alloc: &mut A) -> TemporaryPage
+        where A: FrameAllocator
     {
         TemporaryPage {
             page,
@@ -42,17 +42,16 @@ impl TemporaryPage {
 }
 
 impl TinyAllocator {
-    fn new<'a, A>(allocator: &mut A) -> TinyAllocator
-        where A: FrameAllocator<'a> {
+    fn new<A>(allocator: &mut A) -> TinyAllocator
+        where A: FrameAllocator {
         let mut f = || allocator.alloc();
         let frames = [f(), f(), f()];
         TinyAllocator(frames)
     }
 }
 
-use memory::frame_set::EmptyIterator;
-impl FrameAllocator<'static> for TinyAllocator {
-    type FrameIter = EmptyIterator;
+impl FrameAllocator for TinyAllocator {
+    type FrameSetImpl = EmptyFrameSet;
 
     fn alloc(&mut self) -> Option<Frame> {
         self.0.iter_mut().find(|x| x.is_some()).and_then(|x| x.take())
@@ -64,7 +63,7 @@ impl FrameAllocator<'static> for TinyAllocator {
             .or_else(|| { panic!("Tiny allocator can only hold 3 frames")});
     }
 
-    fn allocated_frames(&self) -> Self::FrameIter {
-        EmptyIterator
+    fn allocated_frames(self) -> Self::FrameSetImpl {
+        EmptyFrameSet
     }
 }

@@ -1,15 +1,15 @@
 use super::FrameAllocator;
 use memory::Frame;
-use memory::frame_set::EmptyIterator;
+use memory::frame_set::EmptyFrameSet;
 
 pub struct NopFrameAllocator;
 
-impl FrameAllocator<'static> for NopFrameAllocator {
-    type FrameIter = EmptyIterator;
+impl FrameAllocator for NopFrameAllocator {
+    type FrameSetImpl = EmptyFrameSet;
 
     fn alloc(&mut self) -> Option<Frame> { None }
     fn release(&mut self, frame: Frame) {}
-    fn allocated_frames(&self) -> Self::FrameIter {
-        EmptyIterator
+    fn allocated_frames(self) -> Self::FrameSetImpl {
+        EmptyFrameSet
     }
 }

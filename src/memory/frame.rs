@@ -7,12 +7,13 @@ pub struct Frame {
     index: usize,
 }
 
-pub trait IFrame : Clone {
+pub trait IFrame {
     fn new(index: usize) -> Frame;
     fn containing_addr(addr: usize) -> Frame;
     fn start_addr(&self) -> PhysicalAddr;
     fn range_inclusive(start: Frame, end: Frame) -> FrameIter;
     fn index(&self) -> usize;
+//    fn clone(&self) -> Self;
     fn set_index(&mut self, new_index: usize);
 }
 
@@ -39,6 +40,10 @@ impl IFrame for Frame {
     fn index(&self) -> usize {
         self.index
     }
+
+//    fn clone(&self) -> Self {
+//        Frame { index: self.index }
+//    }
 
     fn set_index(&mut self, new_index: usize) {
         self.index = new_index

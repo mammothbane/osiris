@@ -35,19 +35,13 @@ impl <T: Into<Vec<Frame>>> From<T> for VecFrameSet {
     }
 }
 
-impl <'a> FrameSet<'a> for VecFrameSet {
-    type Iter = ::core::slice::Iter<'a, Frame>;
-
+impl FrameSet for VecFrameSet {
     fn contains(&self, frame: &Frame) -> bool {
         self.frames.contains(frame)
     }
-
-    fn iter(&self) -> Self::Iter {
-        self.frames.iter()
-    }
 }
 
-impl <'a> FrameSetMut<'a> for VecFrameSet {
+impl FrameSetMut for VecFrameSet {
     type Err = VecFrameSetErr;
 
     fn add(&mut self, frame: Frame) -> Result<(), VecFrameSetErr> {

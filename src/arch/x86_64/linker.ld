@@ -29,11 +29,6 @@ SECTIONS {
         . = ALIGN(4K);
     }
 
-    /DISCARD/ :
-    {
-        *(.got.plt) *(.got)
-    }
-
     .data.rel.ro : ALIGN(4K)
     {
         *(.data.rel.ro.local*) *(.data.rel.ro .data.rel.ro.*)
@@ -44,5 +39,11 @@ SECTIONS {
     {
         *(.gcc_except_table)
         . = ALIGN(4K);
+    }
+
+    .got.plt :
+    {
+        *(.got.plt) *(.got)
+        . = .;
     }
 }
