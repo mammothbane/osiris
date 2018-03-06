@@ -8,6 +8,8 @@ section .text
 ;;;    rdi - new PTL4
 ;;;    rsi - kernel base
 relocate_kernel:
+    ret
+
     push rbp
     mov rbp, rsp
     mov rsp, rbp

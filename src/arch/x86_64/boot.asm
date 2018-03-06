@@ -1,7 +1,7 @@
 global start
 extern long_mode_start
 
-section .text
+section .text_32
 bits 32
 
 ;;; Error table
@@ -146,22 +146,22 @@ error:
     hlt
 
 
-section .bss
+section .bss_32
 align 4096
 
 p4_table:
-    resb 4096
+    times 4096 db 0
 p3_table:
-    resb 4096
+    times 4096 db 0
 p2_table:
-    resb 4096
+    times 4096 db 0
 
 stack_bottom:
-    resb 4096*4
+    times 4096*4 db 0
 stack_top:
 
 
-section .rodata
+section .rodata_32
 gdt64:
     dq 0 ; zero entry
 
