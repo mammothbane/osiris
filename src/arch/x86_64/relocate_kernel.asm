@@ -8,6 +8,10 @@ section .text
 ;;;    rdi - new PTL4
 ;;;    rsi - kernel base
 relocate_kernel:
+    push rbp
+    mov rbp, rsp
+    mov rsp, rbp
+
     ; activate new page table
     mov cr3, rdi
 
@@ -16,7 +20,8 @@ relocate_kernel:
     ; bump up stack to new location
     add rsp, rsi
     add rbp, rsi
-    add [rsp], rsi
+    ; add [rsp], rsi
+    ; add [rsp + 8], rsi
 
     ; rax stores traced back frame pointers.
     ; rcx stores last (higher-stack, lower-mem) frame pointer to compare to see if we should continue tracing back
@@ -32,7 +37,7 @@ relocate_kernel:
 
 .loop:
     ; adjust return addr and traced frame ptr to remapped kernel location
-    add [rax - 8], rsi
+    add [rax + 8], rsi
     add [rax], rsi
 
     ; follow 1 stack frame back
@@ -40,23 +45,29 @@ relocate_kernel:
     mov rax, [rax]
 
     ; r8 gets the size of this stack frame
-    mov r8, rax
-    sub r8, rcx
+    ; mov r8, rax
+    ; sub r8, rcx
+
+    cmp rax, rsi
+    je .fini
+    jmp .loop
 
     ; if it's negative (our stack is mis-ordered), abort
-    jl .fini
+    ; jl .fini
 
     ; otherwise, if the frame is "too big" to be a real frame (arbitrary, rule of thumb interpretation),
     ;   we've reached the bottom of the stack; exit.
-    cmp r8, 1024*100
-    jge .fini
+    ; cmp r8, 1024*100
+    ; jge .fini
 
     ; else loop again
-    jmp .loop
+    ; jmp .loop
 
 .fini:
     ; invalidate osiris_main's return address
     mov [rcx], rdx
-    mov [rcx - 8], rdx
+    mov [rcx + 8], rdx
 
+    mov rsp, rbp
+    pop rbp
     ret

@@ -13,6 +13,8 @@ bits 32
 
 start:
     mov esp, stack_top
+    mov ebp, 0
+
     mov edi, ebx
 
     call check_multiboot

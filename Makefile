@@ -52,4 +52,4 @@ $(rust_os): $(rust_src)
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
-	@nasm -felf64 $< -o $@
+	@nasm -felf64 -Fdwarf $< -o $@
