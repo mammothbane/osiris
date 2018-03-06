@@ -12,5 +12,5 @@ long_mode_start:
     mov fs, ax
     mov gs, ax
 
-    extern osiris_main
-    call osiris_main
+    extern osiris_init
+    call osiris_init

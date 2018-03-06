@@ -83,7 +83,7 @@ fn enable_syscall() {
 
 
 #[no_mangle]
-pub extern "C" fn osiris_init(multiboot_info: usize) {
+pub extern "C" fn osiris_init(multiboot_info: usize) -> ! {
     vga_buffer::clear_screen();
 
     enable_nx();
@@ -99,6 +99,8 @@ pub extern "C" fn osiris_init(multiboot_info: usize) {
             : "rdi"
         )
     }
+
+    unreachable!();
 }
 
 #[no_mangle]

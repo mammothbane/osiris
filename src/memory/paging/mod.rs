@@ -87,6 +87,7 @@ pub fn remap_kernel(boot_info: &BootInformation) {
             let section_start = Frame::containing_addr(section.start_address());
             let section_end = Frame::containing_addr(section.end_address() - 1);
 
+            // NOTE: old ELF frames are still mapped at this point
             Frame::range_inclusive(section_start, section_end)
                 .for_each(|f| {
                     mapper.map_to(
