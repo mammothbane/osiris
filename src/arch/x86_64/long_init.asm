@@ -1,6 +1,6 @@
 global long_mode_start
 
-section .text
+section .boot_text
 bits 64
 
 long_mode_start:

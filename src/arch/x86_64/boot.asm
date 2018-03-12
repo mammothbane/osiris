@@ -1,7 +1,7 @@
 global start
 extern long_mode_start
 
-section .text
+section .boot_text
 bits 32
 
 ;;; Error table
@@ -95,7 +95,7 @@ setup_pagetable:
     or eax, 0b11
     mov [p4_table], eax
 
-    mov eax, p2_table
+    mov eax, p2_low
     or eax, 0b11
     mov [p3_table], eax
 
@@ -106,7 +106,7 @@ setup_pagetable:
     mov eax, 0x200000
     mul ecx
     or eax, 0b10000011 ; present, writable, huge
-    mov [p2_table + ecx * 8], eax
+    mov [p2_low + ecx * 8], eax
 
     inc ecx
     cmp ecx, 512
@@ -116,6 +116,7 @@ setup_pagetable:
 
 
 enable_paging:
+    ;; also enables long mode
     mov eax, p4_table
     mov cr3, eax
 
@@ -146,14 +147,16 @@ error:
     hlt
 
 
-section .bss
+section .boot_bss
 align 4096
 
 p4_table:
     resb 4096
 p3_table:
     resb 4096
-p2_table:
+p2_low:
+    resb 4096
+p2_high:
     resb 4096
 
 stack_bottom:
@@ -161,7 +164,7 @@ stack_bottom:
 stack_top:
 
 
-section .rodata
+section .boot_rodata
 gdt64:
     dq 0 ; zero entry
 
