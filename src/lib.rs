@@ -91,6 +91,9 @@ pub extern "C" fn osiris_init(multiboot_info: usize) -> ! {
 
     memory::preinit(unsafe { multiboot2::load(multiboot_info) });
 
+//    println!("returned from preinit!");
+//    unsafe { ::x86_64::instructions::halt(); }
+
     unsafe {
         asm!("mov $0, %rdi
               jmp osiris_main"
@@ -105,11 +108,21 @@ pub extern "C" fn osiris_init(multiboot_info: usize) -> ! {
 
 #[no_mangle]
 pub extern "C" fn osiris_main(multiboot_info: usize) {
+//    println!("entering osiris_main");
+//    unsafe { ::x86_64::instructions::halt(); }
+
     let boot_info = BOOT_INFO.call_once(|| {
         unsafe { multiboot2::load(multiboot_info + KERNEL_BASE) }
     });
 
+//    println!("boot_info loaded");
+//    unsafe { ::x86_64::instructions::halt(); }
+
     let mut memory_controller = memory::init(boot_info);
+
+    println!("memory initialized");
+    unsafe { ::x86_64::instructions::halt(); }
+
 
     println!();
 
@@ -121,10 +134,6 @@ pub extern "C" fn osiris_main(multiboot_info: usize) {
     unsafe { x86_64::instructions::halt(); }
 
 }
-
-#[lang = "eh_personality"]
-#[no_mangle]
-pub extern fn eh_personality() {}
 
 #[lang = "panic_fmt"]
 #[no_mangle]

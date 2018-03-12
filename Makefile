@@ -42,12 +42,11 @@ $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) build/isofiles 2> /dev/null
 	@rm -r build/isofiles
 
-$(kernel): $(rust_os) $(asm_obj) $(linker_script)
+$(kernel): kernel $(rust_os) $(asm_obj) $(linker_script)
 	@ld -n --gc-sections -T $(linker_script) -o $(kernel) $(asm_obj) $(rust_os)
 
-kernel: $(rust_os)
-
-$(rust_os): $(rust_src)
+# Note: this produces $(rust_os) but we're keeping it separate to force Xargo to rebuild every time
+kernel:
 	@xargo build --target $(target)
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm

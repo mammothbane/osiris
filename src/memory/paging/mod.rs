@@ -112,6 +112,7 @@ pub fn remap_kernel(boot_info: &BootInformation) {
             .for_each(|f| {
                 let page = Page::containing_addr(KERNEL_BASE + f.start_addr());
                 mapper.map_to(page, f.clone(), PRESENT, &mut alloc);
+                mapper.identity_map(f, PRESENT, &mut alloc); // TODO: temp
             });
     });
 
@@ -138,11 +139,12 @@ pub fn remap_kernel(boot_info: &BootInformation) {
 
     active_table.unmap(old_p4, &mut alloc);
 
-    let kstart_frame = Page::containing_addr(kernel_start);
-    let kend_frame = Page::containing_addr(kernel_end);
-
-    Page::range_inclusive(kstart_frame, kend_frame)
-        .for_each(|p| {
-            active_table.unmap(p, &mut alloc);
-        });
+//    let kstart_frame = Page::containing_addr(kernel_start);
+//    let kend_frame = Page::containing_addr(kernel_end);
+//
+//    unsafe { ::x86_64::instructions::halt(); }
+//    Page::range_inclusive(kstart_frame, kend_frame)
+//        .for_each(|p| {
+//            active_table.unmap(p, &mut alloc);
+//        });
 }

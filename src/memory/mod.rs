@@ -67,12 +67,47 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
 
     assert_has_not_been_called!("memory::init must only be called once");
 
+    // TODO: unmap unused (low) pages
+
+    println!("in memory::init");
+
+    let mut active_table = unsafe { ActivePageTable::new() };
+
+    let (kernel_start, kernel_end) = kernel_bounds(&boot_info);
+    let mmap_tag = boot_info.memory_map_tag().expect("memory map tag required");
+
+//    println!("got kernel start, mmap tag");
+//    unsafe { ::x86_64::instructions::halt() };
+
+    let heap_start_page = Page::containing_addr(HEAP_START);
+    let heap_end_page = Page::containing_addr(HEAP_START + HEAP_SIZE - 1);
+
+    {
+        let mut ary: [Frame; 2048] = unsafe { ::core::mem::uninitialized() };
+        println!("need {} frames, have {}", HEAP_SIZE/PAGE_SIZE, ary.len());
+
+        let mut tmp_alloc = AreaFrameAllocator::new(
+            kernel_start as usize + KERNEL_BASE,
+            kernel_end as usize + KERNEL_BASE,
+            boot_info.start_address(), // offsets are already accounted for here
+            boot_info.end_address(),
+            mmap_tag.memory_areas(),
+            StackFrameSet::new(&mut ary),
+        );
+
+        Page::range_inclusive(heap_start_page, heap_end_page)
+            .for_each(|p| active_table.map(p, paging::WRITABLE, &mut tmp_alloc));
+    }
+
+    println!("heap pages mapped");
+    unsafe { ::x86_64::instructions::halt() };
+
     unsafe {
         HEAP_ALLOCATOR.lock().init(HEAP_START, HEAP_START + HEAP_SIZE);
     }
 
-    let (kernel_start, kernel_end) = kernel_bounds(&boot_info);
-    let mmap_tag = boot_info.memory_map_tag().expect("memory map tag required");
+    println!("heap created");
+    unsafe { ::x86_64::instructions::halt() };
 
     let mut frame_allocator = AreaFrameAllocator::new(
         kernel_start as usize + KERNEL_BASE,
@@ -80,16 +115,8 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
         boot_info.start_address() + KERNEL_BASE,
         boot_info.end_address() + KERNEL_BASE,
         mmap_tag.memory_areas(),
-        VecFrameSet::new(),
+        VecFrameSet::new(), // TODO: extract from active table
     );
-
-    let mut active_table = unsafe { ActivePageTable::new() };
-
-    let heap_start_page = Page::containing_addr(HEAP_START);
-    let heap_end_page = Page::containing_addr(HEAP_START + HEAP_SIZE - 1);
-
-    Page::range_inclusive(heap_start_page, heap_end_page)
-        .for_each(|p| active_table.map(p, paging::WRITABLE, &mut frame_allocator));
 
     let stack_allocator = {
         let stack_start = heap_end_page + 1;
