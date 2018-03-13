@@ -1,4 +1,4 @@
-section .multiboot_header
+section .multiboot_header progbits alloc noexec nowrite
 
 header_start:
     dd 0xe85250d6                   ; magic number

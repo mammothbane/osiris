@@ -1,7 +1,7 @@
 global start
 extern long_mode_start
 
-section .boot_text
+section .boot_text progbits alloc exec nowrite align=16
 bits 32
 
 ;;; Error table
@@ -95,7 +95,7 @@ setup_pagetable:
     or eax, 0b11
     mov [p4_table], eax
 
-    mov eax, p2_low
+    mov eax, p2_table
     or eax, 0b11
     mov [p3_table], eax
 
@@ -106,7 +106,7 @@ setup_pagetable:
     mov eax, 0x200000
     mul ecx
     or eax, 0b10000011 ; present, writable, huge
-    mov [p2_low + ecx * 8], eax
+    mov [p2_table + ecx * 8], eax
 
     inc ecx
     cmp ecx, 512
@@ -147,16 +147,14 @@ error:
     hlt
 
 
-section .boot_bss
+section .boot_bss nobits alloc noexec write align=4
 align 4096
 
 p4_table:
     resb 4096
 p3_table:
     resb 4096
-p2_low:
-    resb 4096
-p2_high:
+p2_table:
     resb 4096
 
 stack_bottom:
@@ -164,7 +162,7 @@ stack_bottom:
 stack_top:
 
 
-section .boot_rodata
+section .boot_rodata progbits alloc noexec nowrite align=4
 gdt64:
     dq 0 ; zero entry
 

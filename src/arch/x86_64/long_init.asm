@@ -1,6 +1,6 @@
 global long_mode_start
 
-section .boot_text
+section .boot_text progbits alloc exec nowrite align=16
 bits 64
 
 long_mode_start:
@@ -12,5 +12,9 @@ long_mode_start:
     mov fs, ax
     mov gs, ax
 
+    extern remap_page_tables
+    call remap_page_tables
+
     extern osiris_init
-    call osiris_init
+    mov rax, osiris_init
+    call rax

@@ -8,6 +8,9 @@ asm_src := $(wildcard src/arch/$(arch)/*.asm)
 asm_obj := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(asm_src))
 
+c_src := $(wildcard src/arch/$(arch)/*.c)
+c_obj := $(patsubst src/arch/$(arch)/%.c, build/arch/$(arch)/%.o, $(c_src))
+
 rust_src := $(wildcard src/**/*.rs)
 
 target ?= $(arch)-osiris
@@ -42,8 +45,8 @@ $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) build/isofiles 2> /dev/null
 	@rm -r build/isofiles
 
-$(kernel): kernel $(rust_os) $(asm_obj) $(linker_script)
-	@ld -n --gc-sections -T $(linker_script) -o $(kernel) $(asm_obj) $(rust_os)
+$(kernel): kernel $(rust_os) $(asm_obj) $(linker_script) $(c_obj)
+	@ld -n --gc-sections -T $(linker_script) -o $(kernel) $(asm_obj) $(c_obj) $(rust_os)
 
 # Note: this produces $(rust_os) but we're keeping it separate to force Xargo to rebuild every time
 kernel:
@@ -51,4 +54,8 @@ kernel:
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
-	@nasm -felf64 -Fdwarf $< -o $@
+	@nasm -felf64 -Fdwarf -g $< -o $@
+
+build/arch/$(arch)/%.o: src/arch/$(arch)/%.c
+	@mkdir -p $(shell dirname $@)
+	@gcc -g -c $< -o $@ -std=c99 -Wall
