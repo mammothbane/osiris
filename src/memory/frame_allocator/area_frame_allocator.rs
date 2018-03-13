@@ -38,12 +38,12 @@ impl <T: FrameSetMut> AreaFrameAllocator<T> {
 
     fn choose_next_area(&mut self) {
         self.current_area = self.areas.clone().filter(|area| {
-            let addr = area.base_addr + area.length - 1;
+            let addr = area.end_address() - 1;
             Frame::containing_addr(addr as usize) >= self.next_free_frame
-        }).min_by_key(|area| area.base_addr);
+        }).min_by_key(|area| area.start_address());
 
         self.current_area.map(|area| {
-            let start_frame = Frame::containing_addr(area.base_addr as usize);
+            let start_frame = Frame::containing_addr(area.start_address());
             if self.next_free_frame < start_frame {
                 self.next_free_frame = start_frame;
             }
@@ -59,7 +59,7 @@ impl <T: FrameSetMut> FrameAllocator for AreaFrameAllocator<T> {
             let frame = Frame::new(self.next_free_frame.index());
 
             let current_area_last_frame = {
-                let addr = area.base_addr + area.length - 1;
+                let addr = area.end_address() - 1;
                 Frame::containing_addr(addr as usize)
             };
 

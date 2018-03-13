@@ -27,6 +27,38 @@ const ENTRY_COUNT: usize = 512;
 pub type PhysicalAddr = usize;
 pub type VirtualAddr = usize;
 
+#[used]
+#[no_mangle]
+#[link_section = ".boot_text"]
+#[link_name = "remap_page_tables"]
+#[linkage = "external"]
+pub extern "C" fn remap_page_tables(b_info: usize) {
+    let mut page_table = unsafe { ActivePageTable::new() };
+    let boot_info = unsafe { ::multiboot2::load(b_info) };
+
+    let elf_sects = boot_info.elf_sections_tag().unwrap().sections();
+    let mut alloc = super::NopFrameAllocator;
+
+    elf_sects
+        .filter(|s| {
+            s.is_allocated() && s.size() > 0 && s.start_address() >= 0xffff800000000000
+        })
+        .for_each(|s| {
+            let start_frame = Frame::containing_addr(s.offset() as usize);
+            let end_frame = Frame::containing_addr((s.offset() + s.size()) as usize);
+            let start_page = Page::containing_addr(s.start_address() as usize);
+            let end_page = Page::containing_addr(s.end_address() as usize);
+
+            let flags = EntryFlags::from_elf_section(&s);
+
+            Frame::range_inclusive(start_frame, end_frame)
+                .zip(Page::range_inclusive(start_page, end_page))
+                .for_each(|(f, p)| {
+                    page_table.map_to(p, f, flags, &mut alloc);
+                })
+        })
+}
+
 pub fn remap_kernel(boot_info: &BootInformation) {
     use super::{KERNEL_BASE, PAGE_SIZE};
 
@@ -34,13 +66,13 @@ pub fn remap_kernel(boot_info: &BootInformation) {
         let elf_sections_tag = boot_info.elf_sections_tag().expect("elf sections required");
 
         let kernel_start = elf_sections_tag.sections()
-            .filter(|s| s.is_allocated() && s.size > 0)
-            .map(|s| s.addr)
+            .filter(|s| s.is_allocated() && s.size() > 0)
+            .map(|s| s.start_address())
             .min().unwrap();
 
         let kernel_end = elf_sections_tag.sections()
-            .filter(|s| s.is_allocated() && s.size > 0)
-            .map(|s| s.addr)
+            .filter(|s| s.is_allocated() && s.size() > 0)
+            .map(|s| s.start_address())
             .max().unwrap();
 
         (kernel_start as usize, kernel_end as usize)
@@ -73,19 +105,19 @@ pub fn remap_kernel(boot_info: &BootInformation) {
             .expect("memory map tag required");
 
         for section in elf_sects_tag.sections() {
-            if !section.is_allocated() || section.size == 0 {
+            if !section.is_allocated() || section.size() == 0 {
                 continue;
             }
 
             // TODO: skip empty sections (?)
 
-            assert_eq!(section.start_address() % PAGE_SIZE, 0, "sections must be page-aligned");
-            println!("mapping section at addr: {:#x}, size: {:#x}", section.addr, section.size);
+            assert_eq!(section.start_address() % PAGE_SIZE as u64, 0, "sections must be page-aligned");
+            println!("mapping section at addr: {:#x}, size: {:#x}", section.start_address(), section.size());
 
-            let mut flags = EntryFlags::from_elf_section(section);
+            let mut flags = EntryFlags::from_elf_section(&section);
 
-            let section_start = Frame::containing_addr(section.start_address());
-            let section_end = Frame::containing_addr(section.end_address() - 1);
+            let section_start = Frame::containing_addr(section.start_address() as usize);
+            let section_end = Frame::containing_addr(section.end_address() as usize - 1);
 
             // NOTE: old ELF frames are still mapped at this point
             Frame::range_inclusive(section_start, section_end)

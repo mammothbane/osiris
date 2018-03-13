@@ -10,7 +10,7 @@ crate-type = ["staticlib"]
 rlibc = "1.0"
 volatile = "0.1.0"
 spin = "0.4.5"
-multiboot2 = "0.1.0"
+multiboot2 = "0.5.0"
 bitflags = "0.9.1"
 x86_64 = "0.1.2"
 once = "0.3.3"
@@ -26,3 +26,4 @@ features = ["spin_no_std"]
 
 [patch.crates-io]
 failure = { git = "https://github.com/mammothbane/failure" }
+multiboot2 = { git = "https://github.com/mammothbane/multiboot2-elf64" }

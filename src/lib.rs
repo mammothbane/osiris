@@ -49,8 +49,6 @@ mod interrupts;
 #[global_allocator]
 pub static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
-pub static BOOT_INFO: Once<&'static BootInformation> = Once::new();
-
 fn enable_nx() {
     use x86_64::registers::msr::{IA32_EFER, rdmsr, wrmsr};
 
@@ -89,7 +87,9 @@ pub extern "C" fn osiris_init(multiboot_info: usize) -> ! {
     enable_nx();
     enable_write_protect();
 
-    memory::preinit(unsafe { multiboot2::load(multiboot_info) });
+    let boot_info = unsafe { multiboot2::load(multiboot_info) };
+
+    memory::preinit(&boot_info);
 
 //    println!("returned from preinit!");
 //    unsafe { ::x86_64::instructions::halt(); }
@@ -111,14 +111,12 @@ pub extern "C" fn osiris_main(multiboot_info: usize) {
 //    println!("entering osiris_main");
 //    unsafe { ::x86_64::instructions::halt(); }
 
-    let boot_info = BOOT_INFO.call_once(|| {
-        unsafe { multiboot2::load(multiboot_info + KERNEL_BASE) }
-    });
+    let boot_info = unsafe { multiboot2::load(multiboot_info + KERNEL_BASE) };
 
 //    println!("boot_info loaded");
 //    unsafe { ::x86_64::instructions::halt(); }
 
-    let mut memory_controller = memory::init(boot_info);
+    let mut memory_controller = memory::init(&boot_info);
 
     println!("memory initialized");
     unsafe { ::x86_64::instructions::halt(); }

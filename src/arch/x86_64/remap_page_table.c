@@ -49,7 +49,7 @@ BOOT void clear_page(u64* ptr) {
     }
 }
 
-BOOT void remap_page_tables(void* addr) {
+BOOT void remap_page_tables2(void* addr) {
     struct multiboot_tag* tag;
 
     // TODO: make sure a) we have enough memory, and b) that frames don't collide
