@@ -99,8 +99,21 @@ setup_pagetable:
     or eax, 0b11
     mov [p3_table], eax
 
-    mov ecx, 0
+%if 0
+    mov eax, p3_high
+    or eax, 0b11
+    mov [p4_table + 256*8], eax
 
+    mov eax, p2_high
+    or eax, 0b11
+    mov [p3_high], eax
+
+    mov eax, p1_high
+    or eax, 0b11
+    mov [p2_high], eax
+%endif
+
+    mov ecx, 0
     ; map each p2 entry to a huge page
 .map_p2_table:
     mov eax, 0x200000
@@ -155,6 +168,14 @@ p4_table:
 p3_table:
     resb 4096
 p2_table:
+    resb 4096
+
+;; TODO: make this better
+p3_high:
+    resb 4096
+p2_high:
+    resb 4096
+p1_high:
     resb 4096
 
 stack_bottom:

@@ -7,3 +7,6 @@ define tstack
 	end
 end
 
+source gdb.py
+set python print-stack full
+set output-radix 16

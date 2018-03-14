@@ -27,38 +27,6 @@ const ENTRY_COUNT: usize = 512;
 pub type PhysicalAddr = usize;
 pub type VirtualAddr = usize;
 
-#[used]
-#[no_mangle]
-#[link_section = ".boot_text"]
-#[link_name = "remap_page_tables"]
-#[linkage = "external"]
-pub extern "C" fn remap_page_tables(b_info: usize) {
-    let mut page_table = unsafe { ActivePageTable::new() };
-    let boot_info = unsafe { ::multiboot2::load(b_info) };
-
-    let elf_sects = boot_info.elf_sections_tag().unwrap().sections();
-    let mut alloc = super::NopFrameAllocator;
-
-    elf_sects
-        .filter(|s| {
-            s.is_allocated() && s.size() > 0 && s.start_address() >= 0xffff800000000000
-        })
-        .for_each(|s| {
-            let start_frame = Frame::containing_addr(s.offset() as usize);
-            let end_frame = Frame::containing_addr((s.offset() + s.size()) as usize);
-            let start_page = Page::containing_addr(s.start_address() as usize);
-            let end_page = Page::containing_addr(s.end_address() as usize);
-
-            let flags = EntryFlags::from_elf_section(&s);
-
-            Frame::range_inclusive(start_frame, end_frame)
-                .zip(Page::range_inclusive(start_page, end_page))
-                .for_each(|(f, p)| {
-                    page_table.map_to(p, f, flags, &mut alloc);
-                })
-        })
-}
-
 pub fn remap_kernel(boot_info: &BootInformation) {
     use super::{KERNEL_BASE, PAGE_SIZE};
 

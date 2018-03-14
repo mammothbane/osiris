@@ -73,13 +73,6 @@ fn enable_syscall() {
     }
 }
 
-//fn syscall(addr: VirtualAddr) {
-//    use x86_64::registers::msr::{IA32_LSTAR, IA32_STAR};
-//
-//    unsafe { asm!("syscall"); }
-//}
-
-
 #[no_mangle]
 pub extern "C" fn osiris_init(multiboot_info: usize) -> ! {
     vga_buffer::clear_screen();

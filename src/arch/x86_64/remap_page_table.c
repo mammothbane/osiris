@@ -8,7 +8,7 @@
 #define u64 uint64_t
 
 BOOT u64 entry_for_frame(u64 frame_idx) {
-    return (frame_idx << 12) | 0x3 | 1 << 4; // present and writable
+    return (frame_idx << 12) | 0x3; // present and writable
 }
 
 BOOT u64 p4_index(u64 page_idx) {
@@ -49,7 +49,9 @@ BOOT void clear_page(u64* ptr) {
     }
 }
 
-BOOT void remap_page_tables2(void* addr) {
+extern void alloc_frame(u64 page_idx, u64 frame_idx);
+
+BOOT void remap_page_tables(void* addr) {
     struct multiboot_tag* tag;
 
     // TODO: make sure a) we have enough memory, and b) that frames don't collide
@@ -93,11 +95,20 @@ BOOT void remap_page_tables2(void* addr) {
                 for (int j = 0; j < frame_count; j++) {
                     u64 page_idx = base_page + j;
 
+//                    alloc_frame(page_idx, phys_frame + j);
+
                     u64* p4_ent = &p4_table()[p4_index(page_idx)];
                     if (!*p4_ent) {
                         *p4_ent = entry_for_frame(tmp_alloc_frame_idx++);
                         clear_page(p3_table(page_idx));
                     }
+
+                    __asm__("mov %%cr3, %%rax\n"
+                            "mov %%rax, %%cr3"
+                            :
+                            :
+                            : "rax");
+                    __asm__("invd");
 
                     volatile u64* p3_ent = &(p3_table(page_idx)[p3_index(page_idx)]);
                     if (!*p3_ent) {
@@ -105,11 +116,25 @@ BOOT void remap_page_tables2(void* addr) {
                         clear_page(p2_table(page_idx));
                     }
 
+                    __asm__("mov %%cr3, %%rax\n"
+                            "mov %%rax, %%cr3"
+                            :
+                            :
+                            : "rax");
+                    __asm__("invd");
+
                     volatile u64* p2_ent = &(p2_table(page_idx)[p2_index(page_idx)]);
                     if (!*p2_ent) {
                         *p2_ent = entry_for_frame(tmp_alloc_frame_idx++);
                         clear_page(p1_table(page_idx));
                     }
+
+                    __asm__("mov %%cr3, %%rax\n"
+                            "mov %%rax, %%cr3"
+                            :
+                            :
+                            : "rax");
+                    __asm__("invd");
 
                     volatile u64* p1_ent = &(p1_table(page_idx)[p1_index(page_idx)]);
                     if (!*p1_ent) {
