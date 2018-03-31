@@ -107,10 +107,6 @@ setup_pagetable:
     mov eax, p2_high
     or eax, 0b11
     mov [p3_high], eax
-
-    mov eax, p1_high
-    or eax, 0b11
-    mov [p2_high], eax
 %endif
 
     mov ecx, 0
@@ -174,8 +170,6 @@ p2_table:
 p3_high:
     resb 4096
 p2_high:
-    resb 4096
-p1_high:
     resb 4096
 
 stack_bottom:

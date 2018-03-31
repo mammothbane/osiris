@@ -3,9 +3,12 @@
 #include <sys/types.h>
 
 #define BOOT __attribute__((section(".boot_text")))
+#define BOOT_STATIC __attribute__((section(".boot_data"))) static
 #define bool uint8_t
+#define u8 uint8_t
 #define u32 uint32_t
 #define u64 uint64_t
+#define u16 uint16_t
 
 BOOT u64 entry_for_frame(u64 frame_idx) {
     return (frame_idx << 12) | 0x3; // present and writable
@@ -49,9 +52,34 @@ BOOT void clear_page(u64* ptr) {
     }
 }
 
-extern void alloc_frame(u64 page_idx, u64 frame_idx);
+#define BUFFER_HEIGHT 25
+#define BUFFER_WIDTH 80
+
+BOOT_STATIC u16* VGA_BUF = (u16*)0xb8000;
+
+BOOT void clear_screen() {
+    for (int i = 0; i < BUFFER_HEIGHT; i++) {
+        for (int j = 0; j < BUFFER_WIDTH; j++) {
+            VGA_BUF[i * BUFFER_WIDTH + j] = 0;
+        }
+    }
+}
+
+BOOT void message(const char* s, u16 color, u8 x, u8 y) {
+    u16* vga_idx = VGA_BUF + y * BUFFER_WIDTH + x;
+    while (*s) *vga_idx++ = ((u16)*s++) | color << 8;
+}
+
+BOOT void panic(const char* s) {
+    BOOT_STATIC char error[] = "PANIC: ";
+    message(error, 0x04, 6, 11);
+    message(s, 0x0f, 6 + sizeof(error) - 1, 11);
+    __asm__("hlt");
+}
 
 BOOT void remap_page_tables(void* addr) {
+    clear_screen();
+
     struct multiboot_tag* tag;
 
     // TODO: make sure a) we have enough memory, and b) that frames don't collide
@@ -83,8 +111,8 @@ BOOT void remap_page_tables(void* addr) {
                 if (virt_addr < 0xffff800000000000) continue;
 
                 if (size % 4096 != 0 || phys_addr % 4096 != 0) {
-                    continue;
-                    // panic-- we're not aligned
+                    BOOT_STATIC char message[] = "bad align";
+                    panic(message);
                 }
 
                 if (hdr->sh_type & SHT_NOBITS) { // BSS: allocate
@@ -95,53 +123,23 @@ BOOT void remap_page_tables(void* addr) {
                 for (int j = 0; j < frame_count; j++) {
                     u64 page_idx = base_page + j;
 
-//                    alloc_frame(page_idx, phys_frame + j);
+                    // p4 and p3 should be mapped already. just crash if they're not.
 
                     u64* p4_ent = &p4_table()[p4_index(page_idx)];
                     if (!*p4_ent) {
-                        *p4_ent = entry_for_frame(tmp_alloc_frame_idx++);
-                        clear_page(p3_table(page_idx));
+                        BOOT_STATIC char message[] = "p4 unmapped";
+                        panic(message);
                     }
-
-                    __asm__("mov %%cr3, %%rax\n"
-                            "mov %%rax, %%cr3"
-                            :
-                            :
-                            : "rax");
-                    __asm__("invd");
 
                     volatile u64* p3_ent = &(p3_table(page_idx)[p3_index(page_idx)]);
                     if (!*p3_ent) {
-                        *p3_ent = entry_for_frame(tmp_alloc_frame_idx++);
-                        clear_page(p2_table(page_idx));
+                        BOOT_STATIC char message[] = "p3 unmapped";
+                        panic(message);
                     }
-
-                    __asm__("mov %%cr3, %%rax\n"
-                            "mov %%rax, %%cr3"
-                            :
-                            :
-                            : "rax");
-                    __asm__("invd");
 
                     volatile u64* p2_ent = &(p2_table(page_idx)[p2_index(page_idx)]);
                     if (!*p2_ent) {
-                        *p2_ent = entry_for_frame(tmp_alloc_frame_idx++);
-                        clear_page(p1_table(page_idx));
-                    }
-
-                    __asm__("mov %%cr3, %%rax\n"
-                            "mov %%rax, %%cr3"
-                            :
-                            :
-                            : "rax");
-                    __asm__("invd");
-
-                    volatile u64* p1_ent = &(p1_table(page_idx)[p1_index(page_idx)]);
-                    if (!*p1_ent) {
-                        *p1_ent = entry_for_frame(phys_frame + j);
-                        // fine to leave garbage here
-                    } else {
-                        // panic?
+                        *p2_ent = entry_for_frame(phys_frame) | (1 << 7); // giant page
                     }
                 }
             }

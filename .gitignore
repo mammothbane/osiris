@@ -2,3 +2,5 @@
 **/*.rs.bk
 build
 rust-os-gdb
+cmake-build-debug
+cmake-build-release
