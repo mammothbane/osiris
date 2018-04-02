@@ -82,10 +82,6 @@ BOOT void remap_page_tables(void* addr) {
 
     struct multiboot_tag* tag;
 
-    // TODO: make sure a) we have enough memory, and b) that frames don't collide
-    // 512 2MB frames from boot mapping should take up 0x19000 4KB frames
-    u64 tmp_alloc_frame_idx = 0xf0000;
-
     for (tag = (struct multiboot_tag *) (addr + 8);
          tag->type != MULTIBOOT_TAG_TYPE_END;
          tag = (struct multiboot_tag *) ((multiboot_uint8_t *) tag + ((tag->size + 7) & ~7))) {
@@ -115,9 +111,11 @@ BOOT void remap_page_tables(void* addr) {
                     panic(message);
                 }
 
+                // TODO: actually account for this
                 if (hdr->sh_type & SHT_NOBITS) { // BSS: allocate
-                    phys_frame = tmp_alloc_frame_idx;
-                    tmp_alloc_frame_idx += size / 4096; // relying on alignment here
+                    continue;
+//                    phys_frame = tmp_alloc_frame_idx;
+//                    tmp_alloc_frame_idx += size / 4096; // relying on alignment here
                 }
 
                 for (int j = 0; j < frame_count; j++) {

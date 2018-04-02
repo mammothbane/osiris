@@ -99,7 +99,6 @@ setup_pagetable:
     or eax, 0b11
     mov [p3_table], eax
 
-%if 0
     mov eax, p3_high
     or eax, 0b11
     mov [p4_table + 256*8], eax
@@ -107,7 +106,6 @@ setup_pagetable:
     mov eax, p2_high
     or eax, 0b11
     mov [p3_high], eax
-%endif
 
     mov ecx, 0
     ; map each p2 entry to a huge page
@@ -166,7 +164,6 @@ p3_table:
 p2_table:
     resb 4096
 
-;; TODO: make this better
 p3_high:
     resb 4096
 p2_high:
@@ -178,13 +175,36 @@ stack_top:
 
 
 section .boot_rodata progbits alloc noexec nowrite align=4
+
 gdt64:
-    dq 0 ; zero entry
+    dw 0xffff    ; Limit (low).
+    dw 0         ; Base (low).
+    db 0         ; Base (middle)
+    db 0         ; Access, limit (high).
+    db 1         ; Granularity.
+    db 0         ; Base (high).
 
 .code: equ $ - gdt64
-    ; code segment
-    ; executable, code/data desc., present, 64-bit
-    dq (1 << 43) | (1 << 44) | (1 << 47) | (1 << 53)
+    dw 0xffff        ; Limit (low).
+    dw 0             ; Base (low).
+    db 0             ; Base (middle)
+    db 10011010b     ; Access (exec/read).
+    db 11101111b     ; Granularity, 64 bits flag, limit19:16.
+    db 0             ; Base (high).
+
+.data: equ $ - gdt64
+    dw 0xffff
+    dw 0
+    db 0
+    db 10010010b     ; Access (read/write).
+    db 11001111b     ; Granularity.
+    db 0
+
+.tss equ $ - gdt64
+    dw 0xffff
+    dw 0
+    db 0
+    db
 
 .pointer:
     dw $ - gdt64 - 1

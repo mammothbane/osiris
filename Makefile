@@ -16,6 +16,8 @@ rust_src := $(wildcard src/**/*.rs)
 target ?= $(arch)-osiris
 rust_os := target/$(target)/debug/libosiris.a
 
+qemu_flags = -m 1G -s
+
 .PHONY: all clean run iso kernel gdb debug int
 
 all: $(kernel)
@@ -25,13 +27,13 @@ clean:
 	@xargo clean
 
 debug: $(iso)
-	@qemu-system-x86_64 -cdrom $(iso) -s -S
+	@qemu-system-x86_64 -cdrom $(iso) $(qemu_flags) -S
 
 run: $(iso)
-	@qemu-system-x86_64 -cdrom $(iso) -s
+	@qemu-system-x86_64 -cdrom $(iso) $(qemu_flags)
 
 int: $(iso)
-	@qemu-system-x86_64 -cdrom $(iso) -d int -no-reboot
+	@qemu-system-x86_64 -cdrom $(iso) $(qemu_flags) -d int -no-reboot
 
 gdb: $(kernel)
 	@rust-os-gdb/bin/rust-gdb "$(kernel)" -ex "target remote :1234"
