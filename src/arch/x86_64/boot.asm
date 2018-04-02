@@ -1,8 +1,10 @@
+bits 32
+
 global start
 extern long_mode_start
 
-section .boot_text progbits alloc exec nowrite align=16
-bits 32
+section .boot progbits alloc exec write
+align 16
 
 ;;; Error table
 ;;;
@@ -109,15 +111,17 @@ setup_pagetable:
 
     mov ecx, 0
     ; map each p2 entry to a huge page
-.map_p2_table:
+.map_p2_tables:
     mov eax, 0x200000
     mul ecx
     or eax, 0b10000011 ; present, writable, huge
+
     mov [p2_table + ecx * 8], eax
+    mov [p2_high + ecx * 8], eax
 
     inc ecx
     cmp ecx, 512
-    jne .map_p2_table
+    jne .map_p2_tables
 
     ret
 
@@ -154,27 +158,26 @@ error:
     hlt
 
 
-section .boot_bss nobits alloc noexec write align=4
 align 4096
 
 p4_table:
-    resb 4096
+    times 4096 db 0
 p3_table:
-    resb 4096
+    times 4096 db 0
 p2_table:
-    resb 4096
+    times 4096 db 0
 
 p3_high:
-    resb 4096
+    times 4096 db 0
 p2_high:
-    resb 4096
+    times 4096 db 0
 
 stack_bottom:
-    resb 4096*4
+    times 4096*4 db 0
 stack_top:
 
 
-section .boot_rodata progbits alloc noexec nowrite align=4
+align 16
 
 gdt64:
     dw 0xffff    ; Limit (low).
@@ -191,20 +194,6 @@ gdt64:
     db 10011010b     ; Access (exec/read).
     db 11101111b     ; Granularity, 64 bits flag, limit19:16.
     db 0             ; Base (high).
-
-.data: equ $ - gdt64
-    dw 0xffff
-    dw 0
-    db 0
-    db 10010010b     ; Access (read/write).
-    db 11001111b     ; Granularity.
-    db 0
-
-.tss equ $ - gdt64
-    dw 0xffff
-    dw 0
-    db 0
-    db
 
 .pointer:
     dw $ - gdt64 - 1

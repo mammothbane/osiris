@@ -1,9 +1,10 @@
 use multiboot2::BootInformation;
 pub use self::frame::Frame;
-pub use self::paging::{PhysicalAddr, remap_kernel, VirtualAddr};
-pub use self::stack_allocator::Stack;
 pub use self::frame_allocator::*;
+use self::frame_allocator::AreaFrameAllocator;
 pub use self::frame_set::*;
+pub use self::paging::{PhysicalAddr, VirtualAddr};
+pub use self::stack_allocator::Stack;
 
 mod paging;
 mod stack_allocator;
@@ -16,7 +17,7 @@ pub const PAGE_SIZE: usize = 4096;
 pub const KERNEL_BASE: VirtualAddr = 0xffff_8000_0000_0000; // higher half
 pub const VGA_BASE: usize = 0xb8000;
 
-pub const HEAP_START: usize = KERNEL_BASE + 0o_000_001_000_000_0000;
+pub const HEAP_OFFSET: usize = 0o_000_001_000_000_0000;
 pub const HEAP_SIZE: usize = 100 * 1024;
 
 fn kernel_bounds(boot_info: &BootInformation) -> (u64, u64) {
@@ -35,9 +36,18 @@ fn kernel_bounds(boot_info: &BootInformation) -> (u64, u64) {
     (kernel_start, kernel_end)
 }
 
-pub fn preinit(boot_info: &BootInformation) {
-    assert_has_not_been_called!("memory::preinit must only be called once");
+pub fn init(boot_info: &BootInformation) -> MemoryController {
+    use self::paging::{Page, ActivePageTable};
+    use self::frame_allocator::AreaFrameAllocator;
+    use super::HEAP_ALLOCATOR;
 
+    assert_has_not_been_called!("memory::init must only be called once");
+
+    // TODO: unmap unused (low) pages
+
+    let mut active_table = unsafe { ActivePageTable::new() };
+
+    let (kernel_start, kernel_end) = kernel_bounds(&boot_info);
     let mmap_tag = boot_info.memory_map_tag().expect("memory map tag required");
 
     println!("memory areas:");
@@ -49,7 +59,7 @@ pub fn preinit(boot_info: &BootInformation) {
 
     println!("\nkernel sections:");
     for section in elf_sections_tag.sections().filter(|s| s.is_allocated() && s.size() > 0) {
-        println!("    addr: {:#x}, size: {:#x}, flags: {:#b}", section.start_address(), section.size(), section.flags());
+        println!("    {}: addr: {:#x}, size: {:#x}, flags: {:#b}", section.name(), section.start_address(), section.size(), section.flags());
     }
 
     let (kernel_start, kernel_end) = kernel_bounds(&boot_info);
@@ -57,30 +67,15 @@ pub fn preinit(boot_info: &BootInformation) {
     println!("\nkernel start: {:#x}, end: {:#x}", kernel_start, kernel_end);
     println!("multiboot start: {:#x}, end: {:#x}", boot_info.start_address(), boot_info.end_address());
 
-    remap_kernel(boot_info);
-}
+    unsafe { ::x86_64::instructions::halt() };
 
-pub fn init(boot_info: &BootInformation) -> MemoryController {
-    use self::paging::{Page, ActivePageTable};
-    use self::frame_allocator::AreaFrameAllocator;
-    use super::HEAP_ALLOCATOR;
-
-    assert_has_not_been_called!("memory::init must only be called once");
-
-    // TODO: unmap unused (low) pages
-
-    println!("in memory::init");
-
-    let mut active_table = unsafe { ActivePageTable::new() };
-
-    let (kernel_start, kernel_end) = kernel_bounds(&boot_info);
-    let mmap_tag = boot_info.memory_map_tag().expect("memory map tag required");
+    paging::cleanup(boot_info);
 
 //    println!("got kernel start, mmap tag");
 //    unsafe { ::x86_64::instructions::halt() };
 
-    let heap_start_page = Page::containing_addr(HEAP_START);
-    let heap_end_page = Page::containing_addr(HEAP_START + HEAP_SIZE - 1);
+    let heap_start_page = Page::containing_addr(HEAP_OFFSET);
+    let heap_end_page = Page::containing_addr(HEAP_OFFSET + HEAP_SIZE - 1);
 
     {
         let mut ary: [Frame; 2048] = unsafe { ::core::mem::uninitialized() };
@@ -103,15 +98,15 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
     unsafe { ::x86_64::instructions::halt() };
 
     unsafe {
-        HEAP_ALLOCATOR.lock().init(HEAP_START, HEAP_START + HEAP_SIZE);
+        HEAP_ALLOCATOR.lock().init(HEAP_OFFSET, HEAP_OFFSET + HEAP_SIZE);
     }
 
     println!("heap created");
     unsafe { ::x86_64::instructions::halt() };
 
     let mut frame_allocator = AreaFrameAllocator::new(
-        kernel_start as usize + KERNEL_BASE,
-        kernel_end as usize + KERNEL_BASE,
+        kernel_start as usize,
+        kernel_end as usize,
         boot_info.start_address() + KERNEL_BASE,
         boot_info.end_address() + KERNEL_BASE,
         mmap_tag.memory_areas(),
@@ -132,8 +127,6 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
         stack_allocator,
     }
 }
-
-use self::frame_allocator::AreaFrameAllocator;
 
 pub struct MemoryController {
     active_table: paging::ActivePageTable,

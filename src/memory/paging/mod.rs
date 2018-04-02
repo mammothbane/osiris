@@ -27,7 +27,7 @@ const ENTRY_COUNT: usize = 512;
 pub type PhysicalAddr = usize;
 pub type VirtualAddr = usize;
 
-pub fn remap_kernel(boot_info: &BootInformation) {
+pub fn cleanup(boot_info: &BootInformation) {
     use super::{KERNEL_BASE, PAGE_SIZE};
 
     let (kernel_start, kernel_end) = {
@@ -119,18 +119,6 @@ pub fn remap_kernel(boot_info: &BootInformation) {
     use x86_64::registers::control_regs;
     let old_table = InactivePageTable::new_from_p4_frame(Frame::containing_addr(control_regs::cr3().0 as usize));
 
-    extern "C" {
-        /// swaps active tables and bumps stack
-        fn relocate_kernel(new_ptl4: u64, kern_base: u64);
-    }
-
-    unsafe {
-        relocate_kernel(new_table.p4_frame().start_addr() as u64, KERNEL_BASE as u64);
-
-        use vga_buffer;
-        vga_buffer::update_vga_base(super::VGA_BASE + KERNEL_BASE);
-    }
-
     println!("kernel remapped.");
 
     let old_p4 = Page::containing_addr(
@@ -138,13 +126,4 @@ pub fn remap_kernel(boot_info: &BootInformation) {
     );
 
     active_table.unmap(old_p4, &mut alloc);
-
-//    let kstart_frame = Page::containing_addr(kernel_start);
-//    let kend_frame = Page::containing_addr(kernel_end);
-//
-//    unsafe { ::x86_64::instructions::halt(); }
-//    Page::range_inclusive(kstart_frame, kend_frame)
-//        .for_each(|p| {
-//            active_table.unmap(p, &mut alloc);
-//        });
 }

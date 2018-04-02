@@ -124,10 +124,6 @@ pub static WRITER: Mutex<Writer> = Mutex::new(Writer {
     buf: unsafe { Unique::new_unchecked(VGA_BASE as *mut _) },
 });
 
-pub unsafe fn update_vga_base(addr: VirtualAddr) {
-    WRITER.lock().buf = Unique::new_unchecked(addr as *mut _);
-}
-
 macro_rules! println {
     () => (print!("\n"));
     ($fmt:expr) => (print!(concat!($fmt, "\n")));

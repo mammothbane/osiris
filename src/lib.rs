@@ -16,21 +16,17 @@
 
 #[allow(unused_imports)]
 #[macro_use] extern crate alloc;
-
-#[allow(unused_imports)]
-#[macro_use] extern crate itertools;
-
+extern crate bit_field;
+#[macro_use] extern crate bitflags;
 #[allow(unused_imports)]
 #[macro_use] extern crate failure;
-
-#[macro_use] extern crate bitflags;
 #[macro_use] extern crate failure_derive;
-#[macro_use] extern crate once;
+#[allow(unused_imports)]
+#[macro_use] extern crate itertools;
 #[macro_use] extern crate lazy_static;
-
-extern crate bit_field;
 extern crate linked_list_allocator;
 extern crate multiboot2;
+#[macro_use] extern crate once;
 extern crate rlibc;
 extern crate spin;
 extern crate volatile;
@@ -74,56 +70,22 @@ fn enable_syscall() {
 }
 
 #[no_mangle]
-pub extern "C" fn osiris_init(multiboot_info: usize) -> ! {
+pub extern "C" fn osiris_main(multiboot_info: usize) -> ! {
     vga_buffer::clear_screen();
 
     enable_nx();
     enable_write_protect();
 
     let boot_info = unsafe { multiboot2::load(multiboot_info) };
-
-    memory::preinit(&boot_info);
-
-//    println!("returned from preinit!");
-//    unsafe { ::x86_64::instructions::halt(); }
-
-    unsafe {
-        asm!("mov $0, %rdi
-              jmp osiris_main"
-            :
-            : "r"(multiboot_info)
-            : "rdi"
-        )
-    }
-
-    unreachable!();
-}
-
-#[no_mangle]
-pub extern "C" fn osiris_main(multiboot_info: usize) {
-//    println!("entering osiris_main");
-//    unsafe { ::x86_64::instructions::halt(); }
-
-    let boot_info = unsafe { multiboot2::load(multiboot_info + KERNEL_BASE) };
-
-//    println!("boot_info loaded");
-//    unsafe { ::x86_64::instructions::halt(); }
-
     let mut memory_controller = memory::init(&boot_info);
 
-    println!("memory initialized");
-    unsafe { ::x86_64::instructions::halt(); }
-
-
-    println!();
-
     interrupts::init(&mut memory_controller);
-
     enable_syscall();
 
     println!("\n\nHalting normally.");
-    unsafe { x86_64::instructions::halt(); }
+    unsafe { x86_64::instructions::halt() };
 
+    unreachable!();
 }
 
 #[lang = "panic_fmt"]
