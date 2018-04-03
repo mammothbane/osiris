@@ -15,19 +15,17 @@
 // TODO: remove
 #![allow(dead_code)]
 
-#[allow(unused_imports)]
-#[macro_use] extern crate alloc;
-extern crate bit_field;
-#[macro_use] extern crate bitflags;
-#[allow(unused_imports)]
-#[macro_use] extern crate failure;
+#[allow(unused_imports)] #[macro_use] extern crate alloc;
+#[allow(unused_imports)] #[macro_use] extern crate itertools;
+#[allow(unused_imports)] #[macro_use] extern crate failure;
 #[macro_use] extern crate failure_derive;
-#[allow(unused_imports)]
-#[macro_use] extern crate itertools;
+#[macro_use] extern crate bitflags;
 #[macro_use] extern crate lazy_static;
+#[macro_use] extern crate once;
+
+extern crate bit_field;
 extern crate linked_list_allocator;
 extern crate multiboot2;
-#[macro_use] extern crate once;
 extern crate rlibc;
 extern crate spin;
 extern crate volatile;
@@ -39,6 +37,7 @@ use linked_list_allocator::LockedHeap;
 mod vga_buffer;
 mod memory;
 mod interrupts;
+mod lateinit;
 
 #[global_allocator]
 pub static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();

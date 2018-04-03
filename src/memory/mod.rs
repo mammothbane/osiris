@@ -1,10 +1,14 @@
 use multiboot2::BootInformation;
+
 pub use self::frame::Frame;
 pub use self::frame_allocator::*;
-use self::frame_allocator::AreaFrameAllocator;
 pub use self::frame_set::*;
 pub use self::paging::{PhysicalAddr, VirtualAddr};
 pub use self::stack_allocator::Stack;
+
+use self::frame_allocator::AreaFrameAllocator;
+use ::lateinit::LateInit;
+
 
 mod paging;
 mod stack_allocator;
@@ -20,6 +24,8 @@ pub const VGA_BASE: usize = 0xb8000;
 
 pub const HEAP_OFFSET: usize = 0o_000_001_000_000_0000;
 pub const HEAP_SIZE: usize = 100 * 1024;
+
+pub static INFO: LateInit<mem_info::MemoryInfo> = LateInit::new();
 
 fn kernel_bounds(boot_info: &BootInformation) -> (u64, u64) {
     let elf_sections_tag = boot_info.elf_sections_tag().expect("elf sections required");
@@ -44,8 +50,9 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
 
     assert_has_not_been_called!("memory::init must only be called once");
 
-    // TODO: unmap unused (low) pages
+    unsafe { INFO.init(boot_info.into()) };
 
+    // TODO: unmap unused (low) pages
     let mut active_table = unsafe { ActivePageTable::new() };
 
     let (kernel_start, kernel_end) = kernel_bounds(&boot_info);
