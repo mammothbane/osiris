@@ -2,38 +2,29 @@
 /// Basically a wrapper around Cell that only permits setting once and has debug support to ensure
 /// this.
 
-use core::{ops, cell::UnsafeCell};
+use core::{ops::Deref, cell::UnsafeCell};
 
-pub struct LateInit<T: Sized> {
-    data: UnsafeCell<T>,
-    initialized: UnsafeCell<bool>,
-}
+pub struct LateInit<T>(UnsafeCell<Option<T>>);
 
-unsafe impl <T: Sized> Sync for LateInit<T> {}
+unsafe impl <T> Sync for LateInit<T> {}
 
-impl <T: Sized + Default> LateInit<T> {
-    pub fn new() -> Self {
-        unsafe {
-            LateInit {
-                data: UnsafeCell::new(T::default()),
-                initialized: UnsafeCell::new(false),
-            }
-        }
+impl <T> LateInit<T> {
+    pub const fn new() -> Self {
+        LateInit(UnsafeCell::new(None))
     }
 
     pub unsafe fn init(&self, value: T) {
-        assert!(!*(self.initialized.get()), "LateInit initialized more than once");
-        *self.data.get() = value;
-        *self.initialized.get() = false;
+        assert!((*self.0.get()).is_none(), "LateInit.init called more than once");
+        *self.0.get() = Some(value);
     }
 }
 
-impl <T: Sized> ops::Deref for LateInit<T> {
+impl <T> Deref for LateInit<T> {
     type Target = T;
 
     #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        debug_assert!(unsafe { *(self.initialized.get()) }, "LateInit used without initialization");
-        unsafe { self.data.get().as_ref().unwrap() }
+    fn deref(&self) -> &T {
+        debug_assert!(unsafe { *(&(*self.0.get()).is_some()) }, "LateInit used without initialization");
+        (unsafe { &(*self.0.get()) }).as_ref().unwrap()
     }
 }
