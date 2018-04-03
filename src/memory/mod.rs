@@ -9,6 +9,7 @@ pub use self::stack_allocator::Stack;
 mod paging;
 mod stack_allocator;
 mod frame;
+mod mem_info;
 pub mod frame_set;
 pub mod frame_allocator;
 pub mod bump_allocator;
@@ -66,8 +67,6 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
 
     println!("\nkernel start: {:#x}, end: {:#x}", kernel_start, kernel_end);
     println!("multiboot start: {:#x}, end: {:#x}", boot_info.start_address(), boot_info.end_address());
-
-    unsafe { ::x86_64::instructions::halt() };
 
     paging::cleanup(boot_info);
 
