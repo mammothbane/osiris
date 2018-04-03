@@ -7,8 +7,8 @@ pub use self::paging::{PhysicalAddr, VirtualAddr};
 pub use self::stack_allocator::Stack;
 
 use self::frame_allocator::AreaFrameAllocator;
-use ::lateinit::LateInit;
-
+use self::mem_info::MemoryInfo;
+use lateinit::LateInit;
 
 mod paging;
 mod stack_allocator;
@@ -25,7 +25,8 @@ pub const VGA_BASE: usize = 0xb8000;
 pub const HEAP_OFFSET: usize = 0o_000_001_000_000_0000;
 pub const HEAP_SIZE: usize = 100 * 1024;
 
-pub static INFO: LateInit<mem_info::MemoryInfo> = LateInit::new();
+pub static HEAP_START: LateInit<VirtualAddr> = LateInit::new();
+pub static BOOT_MEM_INFO: LateInit<MemoryInfo> = LateInit::new();
 
 fn kernel_bounds(boot_info: &BootInformation) -> (u64, u64) {
     let elf_sections_tag = boot_info.elf_sections_tag().expect("elf sections required");
@@ -50,8 +51,6 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
 
     assert_has_not_been_called!("memory::init must only be called once");
 
-    unsafe { INFO.init(boot_info.into()) };
-
     // TODO: unmap unused (low) pages
     let mut active_table = unsafe { ActivePageTable::new() };
 
@@ -75,11 +74,10 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
 
     paging::cleanup(boot_info);
 
-//    println!("got kernel start, mmap tag");
-//    unsafe { ::x86_64::instructions::halt() };
+    let heap_start = (kernel_end % 4096 + 8192) as usize;
 
-    let heap_start_page = Page::containing_addr(HEAP_OFFSET);
-    let heap_end_page = Page::containing_addr(HEAP_OFFSET + HEAP_SIZE - 1);
+    let heap_start_page = Page::containing_addr(heap_start);
+    let heap_end_page = Page::containing_addr(heap_start + HEAP_SIZE - 1);
 
     {
         let mut ary: [Frame; 2048] = unsafe { ::core::mem::uninitialized() };
@@ -98,15 +96,11 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
             .for_each(|p| active_table.map(p, paging::WRITABLE, &mut tmp_alloc));
     }
 
-    println!("heap pages mapped");
-    unsafe { ::x86_64::instructions::halt() };
-
     unsafe {
         HEAP_ALLOCATOR.lock().init(HEAP_OFFSET, HEAP_OFFSET + HEAP_SIZE);
+        BOOT_MEM_INFO.init(boot_info.into());
+        HEAP_START.init(heap_start as VirtualAddr);
     }
-
-    println!("heap created");
-    unsafe { ::x86_64::instructions::halt() };
 
     let frame_allocator = AreaFrameAllocator::new(
         kernel_start as usize,

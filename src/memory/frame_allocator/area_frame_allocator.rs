@@ -49,11 +49,13 @@ impl <T: FrameSetMut> AreaFrameAllocator<T> {
             }
         });
     }
+
+    pub fn allocated_frames(self) -> T {
+        self.frame_set
+    }
 }
 
 impl <T: FrameSetMut> FrameAllocator for AreaFrameAllocator<T> {
-    type FrameSetImpl = T;
-
     fn alloc(&mut self) -> Option<Frame> {
         self.current_area.and_then(|area| {
             let frame = Frame::new(self.next_free_frame.index());
@@ -84,9 +86,5 @@ impl <T: FrameSetMut> FrameAllocator for AreaFrameAllocator<T> {
 
     fn release(&mut self, f: Frame) {
         self.frame_set.remove(f.index()).unwrap_or_else(|_| panic!("unable to release frame"));
-    }
-
-    fn allocated_frames(self) -> T {
-        self.frame_set
     }
 }

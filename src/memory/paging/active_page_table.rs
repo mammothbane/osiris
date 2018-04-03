@@ -1,5 +1,7 @@
 use memory::frame::IFrame;
+
 use super::*;
+use super::inactive_page_table::IInactivePageTable;
 
 pub struct ActivePageTable {
     mapper: Mapper,

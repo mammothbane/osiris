@@ -1,17 +1,17 @@
 use core::ops::{Deref, DerefMut};
-use memory::{Frame, PAGE_SIZE};
-use memory::frame::IFrame;
 use multiboot2::BootInformation;
+
 pub use self::active_page_table::ActivePageTable;
 pub use self::entry::*;
-use self::inactive_page_table::IInactivePageTable;
 pub use self::inactive_page_table::InactivePageTable;
-use self::mapper::Mapper;
 pub use self::page::{Page, PageIter};
+
+use super::{Frame, PAGE_SIZE};
+use super::frame::IFrame;
+use super::BootstrapFrameAllocator;
+use self::mapper::Mapper;
 use self::page::IPage;
 use self::temporary_page::TemporaryPage;
-use super::AreaFrameAllocator;
-use super::StackFrameSet;
 
 mod page;
 mod entry;
@@ -27,103 +27,71 @@ const ENTRY_COUNT: usize = 512;
 pub type PhysicalAddr = usize;
 pub type VirtualAddr = usize;
 
-pub fn cleanup(boot_info: &BootInformation) {
-    use super::{KERNEL_BASE, PAGE_SIZE};
+pub fn cleanup(boot_info: &BootInformation) -> ActivePageTable {
+    use super::PAGE_SIZE;
 
-    let (kernel_start, kernel_end) = {
-        let elf_sections_tag = boot_info.elf_sections_tag().expect("elf sections required");
+    let elf_sections_tag = boot_info.elf_sections_tag().expect("unable to find elf sections");
+    let max_offset = elf_sections_tag
+        .sections()
+        .filter(|s| s.is_allocated() && s.size() > 0)
+        .map(|s| s.offset() + s.size())
+        .max().expect("unable to find maximum physical offset") as usize;
 
-        let kernel_start = elf_sections_tag.sections()
-            .filter(|s| s.is_allocated() && s.size() > 0)
-            .map(|s| s.start_address())
-            .min().unwrap();
-
-        let kernel_end = elf_sections_tag.sections()
-            .filter(|s| s.is_allocated() && s.size() > 0)
-            .map(|s| s.start_address())
-            .max().unwrap();
-
-        (kernel_start as usize, kernel_end as usize)
-    };
-
-    use core::mem;
-    let mut frame_ary: [Frame; 32] = unsafe { mem::uninitialized() };
-    let frame_set = StackFrameSet::new(&mut frame_ary);
-
-    let mut alloc = AreaFrameAllocator::new(
-        kernel_start, kernel_end,
-        boot_info.start_address(), boot_info.end_address(),
-        boot_info.memory_map_tag().unwrap().memory_areas(),
-        frame_set,
-    );
+    let start_frame = Frame::containing_addr(max_offset + PAGE_SIZE*4);
+    let mut alloc =  BootstrapFrameAllocator::new(start_frame.index());
 
     let mut temp_page = TemporaryPage::new(
         Page::new_from_index(0xcafebabe),
         &mut alloc
     );
 
+    use super::FrameAllocator;
+
     // TODO: see above
-    let new_table_frame = Frame::containing_addr(kernel_end as usize + PAGE_SIZE*4);
+    let new_table_frame = alloc.alloc()
+        .expect("bootstrap allocator couldn't provide frame");
 
     let mut active_table = unsafe { ActivePageTable::new() };
     let mut new_table = InactivePageTable::new(new_table_frame, &mut active_table, &mut temp_page);
 
     active_table.with(&mut new_table, &mut temp_page, |mapper| {
-        let elf_sects_tag = boot_info.elf_sections_tag()
-            .expect("memory map tag required");
-
-        for section in elf_sects_tag.sections() {
-            if !section.is_allocated() || section.size() == 0 {
+        for section in elf_sections_tag.sections() {
+            if !section.is_allocated() || section.size() == 0 || section.name() == ".boot" {
                 continue;
             }
 
-            // TODO: skip empty sections (?)
-
             assert_eq!(section.start_address() % PAGE_SIZE as u64, 0, "sections must be page-aligned");
-            println!("mapping section at addr: {:#x}, size: {:#x}", section.start_address(), section.size());
+            println!("mapping section {} at addr: {:#x}, size: {:#x}", section.name(), section.start_address(), section.size());
 
             let mut flags = EntryFlags::from_elf_section(&section);
 
-            let section_start = Frame::containing_addr(section.start_address() as usize);
-            let section_end = Frame::containing_addr(section.end_address() as usize - 1);
+            let frame_start = Frame::containing_addr(section.offset() as usize);
+            let frame_end = Frame::containing_addr((section.offset() + section.size() - 1) as usize);
 
-            // NOTE: old ELF frames are still mapped at this point
-            Frame::range_inclusive(section_start, section_end)
-                .for_each(|f| {
-                    mapper.map_to(
-                        Page::containing_addr(KERNEL_BASE + f.start_addr()), f.clone(), flags, &mut alloc
-                    );
+            let page_start = Page::containing_addr(section.start_address() as usize);
+            let page_end = Page::containing_addr(section.end_address() as usize);
 
-                    mapper.identity_map(f, flags, &mut alloc);
+            Frame::range_inclusive(frame_start, frame_end)
+                .zip(Page::range_inclusive(page_start, page_end))
+                .for_each(|(f, p)| {
+                    mapper.map_to(p, f, flags, &mut alloc);
                 });
         }
 
-        let vga_buf_frame = Frame::containing_addr(0xb8000);
-        mapper.map_to(
-            Page::containing_addr(KERNEL_BASE + vga_buf_frame.start_addr()),
-            vga_buf_frame,
-            WRITABLE | PRESENT,
-            &mut alloc
-        );
+        mapper.identity_map(Frame::containing_addr(super::VGA_BASE), WRITABLE | PRESENT, &mut alloc);
 
+        // TODO: unmap this as soon as we have a heap
         let mb_start = Frame::containing_addr(boot_info.start_address());
         let mb_end = Frame::containing_addr(boot_info.end_address());
         Frame::range_inclusive(mb_start, mb_end)
             .for_each(|f| {
-                let page = Page::containing_addr(KERNEL_BASE + f.start_addr());
-                mapper.map_to(page, f.clone(), PRESENT, &mut alloc);
-                mapper.identity_map(f, PRESENT, &mut alloc); // TODO: temp
+                let page = Page::containing_addr(f.start_addr());
+                mapper.map_to(page, f, PRESENT, &mut alloc);
             });
     });
 
-    use x86_64::registers::control_regs;
-    let old_table = InactivePageTable::new_from_p4_frame(Frame::containing_addr(control_regs::cr3().0 as usize));
-
+    let _ = active_table.switch(new_table);
     println!("kernel remapped.");
 
-    let old_p4 = Page::containing_addr(
-        old_table.p4_frame().start_addr()
-    );
-
-    active_table.unmap(old_p4, &mut alloc);
+    active_table
 }

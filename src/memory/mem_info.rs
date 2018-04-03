@@ -44,6 +44,23 @@ impl <'a> From<&'a BootInformation> for MemoryInfo {
                 size: area.size(),
             }).collect();
 
+
+//        ret.mappings = boot_info.elf_sections_tag().unwrap().sections()
+//            .filter(|s| s.name() != "boot" && s.is_allocated() && s.size() > 0)
+//            .map(|s| Mapping {
+//                virt_addr: s.start_address() as usize,
+//                phys_addr: s.offset() as usize,
+//                size: s.size() as usize,
+//                name: s.name().to_owned(),
+//            }).collect();
+//
+//        ret.areas = boot_info.memory_map_tag().unwrap()
+//            .memory_areas()
+//            .map(|area| PhysicalArea {
+//                addr: area.start_address(),
+//                size: area.size(),
+//            }).collect();
+
         ret
     }
 }
