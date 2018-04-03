@@ -9,10 +9,11 @@
 #![feature(ptr_internals)]
 #![feature(const_fn)]
 #![feature(abi_x86_interrupt)]
-#![feature(conservative_impl_trait)]
-#![feature(universal_impl_trait)]
 #![feature(try_trait)]
 #![feature(match_default_bindings)]
+
+// TODO: remove
+#![allow(dead_code)]
 
 #[allow(unused_imports)]
 #[macro_use] extern crate alloc;
@@ -33,9 +34,6 @@ extern crate volatile;
 extern crate x86_64;
 
 use linked_list_allocator::LockedHeap;
-use multiboot2::BootInformation;
-use self::memory::KERNEL_BASE;
-use spin::Once;
 
 #[macro_use]
 mod vga_buffer;
@@ -65,7 +63,7 @@ fn enable_syscall() {
 
     unsafe {
         let efer = rdmsr(IA32_EFER);
-        wrmsr(IA32_EFER, 1 << 0);
+        wrmsr(IA32_EFER, efer | 1);
     }
 }
 

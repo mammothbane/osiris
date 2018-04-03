@@ -1,7 +1,6 @@
 use core::fmt;
 use core::ptr::Unique;
 use memory::VGA_BASE;
-use memory::VirtualAddr;
 use spin::Mutex;
 use volatile::Volatile;
 

@@ -1,5 +1,4 @@
 use core::ptr::Unique;
-use core::convert::Into;
 
 use memory::{Frame, FrameAllocator, PAGE_SIZE};
 use memory::frame::IFrame;

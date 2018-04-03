@@ -74,7 +74,7 @@ impl <T: FrameSetMut> FrameAllocator for AreaFrameAllocator<T> {
 
                 self.next_free_frame.set_index(index + 1);
 
-                self.frame_set.add(frame.clone());
+                self.frame_set.add(frame.clone()).unwrap_or_else(|_| panic!("allocator's frame set was full"));
                 return Some(frame);
             }
 
@@ -83,7 +83,7 @@ impl <T: FrameSetMut> FrameAllocator for AreaFrameAllocator<T> {
     }
 
     fn release(&mut self, f: Frame) {
-        self.frame_set.remove(f.index());
+        self.frame_set.remove(f.index()).unwrap_or_else(|_| panic!("unable to release frame"));
     }
 
     fn allocated_frames(self) -> T {

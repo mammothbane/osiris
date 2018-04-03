@@ -63,8 +63,6 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
         println!("    {}: addr: {:#x}, size: {:#x}, flags: {:#b}", section.name(), section.start_address(), section.size(), section.flags());
     }
 
-    let (kernel_start, kernel_end) = kernel_bounds(&boot_info);
-
     println!("\nkernel start: {:#x}, end: {:#x}", kernel_start, kernel_end);
     println!("multiboot start: {:#x}, end: {:#x}", boot_info.start_address(), boot_info.end_address());
 
@@ -103,7 +101,7 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
     println!("heap created");
     unsafe { ::x86_64::instructions::halt() };
 
-    let mut frame_allocator = AreaFrameAllocator::new(
+    let frame_allocator = AreaFrameAllocator::new(
         kernel_start as usize,
         kernel_end as usize,
         boot_info.start_address() + KERNEL_BASE,
