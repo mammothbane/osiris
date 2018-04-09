@@ -36,7 +36,10 @@ int: $(iso)
 	@qemu-system-x86_64 -cdrom $(iso) $(qemu_flags) -d int -no-reboot
 
 gdb: $(kernel)
-	@rust-os-gdb/bin/rust-gdb "$(kernel)" -ex "target remote :1234"
+	@RUST_GDB=rust-os-gdb/bin/rust-gdb ./gdb.sh "$(kernel)" -ex "target remote :1234"
+
+gui: $(kernel)
+	@./gdbgui.sh "$(kernel)"
 
 iso: $(iso)
 

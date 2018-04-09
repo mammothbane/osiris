@@ -20,12 +20,12 @@ impl TemporaryPage {
     }
 
     pub fn map(&mut self, frame: Frame, active_table: &mut ActivePageTable) -> VirtualAddr {
-        use super::entry::WRITABLE;
+        use super::entry::{PRESENT, WRITABLE};
 
         assert!(active_table.translate_page(self.page).is_none(),
             "page is already mapped");
 
-        active_table.map_to(self.page, frame, WRITABLE, &mut self.alloc);
+        active_table.map_to(self.page, frame, PRESENT | WRITABLE, &mut self.alloc);
         self.page.start_addr()
     }
 

@@ -31,7 +31,7 @@ pub fn cleanup(boot_info: &BootInformation) -> ActivePageTable {
     use super::PAGE_SIZE;
 
     let elf_sections_tag = boot_info.elf_sections_tag().expect("unable to find elf sections");
-    let max_offset = elf_sections_tag
+    let _max_offset = elf_sections_tag
         .sections()
         .filter(|s| s.is_allocated() && s.size() > 0)
         .map(|s| s.offset() + s.size())
@@ -55,18 +55,31 @@ pub fn cleanup(boot_info: &BootInformation) -> ActivePageTable {
     let mut active_table = unsafe { ActivePageTable::new() };
     let mut new_table = InactivePageTable::new(new_table_frame, &mut active_table, &mut temp_page);
 
-    unsafe { ::x86_64::instructions::halt() };
-
     active_table.with(&mut new_table, &mut temp_page, |mapper| {
+        mapper.identity_map(Frame::containing_addr(super::VGA_BASE), WRITABLE | PRESENT, &mut alloc);
+
+        // TODO: unmap this as soon as we have a heap
+        let mb_start = Frame::containing_addr(boot_info.start_address());
+        let mb_end = Frame::containing_addr(boot_info.end_address());
+        Frame::range_inclusive(mb_start, mb_end)
+            .for_each(|f| mapper.identity_map(f, PRESENT, &mut alloc));
+
         for section in elf_sections_tag.sections() {
             if !section.is_allocated() || section.size() == 0 || section.name() == ".boot" {
                 continue;
             }
 
-            assert_eq!(section.start_address() % PAGE_SIZE as u64, 0, "sections must be page-aligned");
-            println!("mapping section {} at addr: {:#x}, size: {:#x}", section.name(), section.start_address(), section.size());
+            let start_addr = section.start_address();
+            let _start_addr2 = section.start_address() as usize;
+
+            let _page = Page::containing_addr(_start_addr2);
+
+            assert_eq!(start_addr % PAGE_SIZE as u64, 0, "sections must be page-aligned");
+            println!("mapping section {} at addr: {:#x}, size: {:#x}", section.name(), start_addr, section.size());
 
             let mut flags = EntryFlags::from_elf_section(&section);
+
+            let _start_addr3 = section.start_address() as usize;
 
             let page_start = Page::containing_addr(section.start_address() as usize);
             let page_end = Page::containing_addr(section.end_address() as usize);
@@ -80,17 +93,6 @@ pub fn cleanup(boot_info: &BootInformation) -> ActivePageTable {
                     mapper.map_to(p, f, flags, &mut alloc);
                 });
         }
-
-        mapper.identity_map(Frame::containing_addr(super::VGA_BASE), WRITABLE | PRESENT, &mut alloc);
-
-        // TODO: unmap this as soon as we have a heap
-        let mb_start = Frame::containing_addr(boot_info.start_address());
-        let mb_end = Frame::containing_addr(boot_info.end_address());
-        Frame::range_inclusive(mb_start, mb_end)
-            .for_each(|f| {
-                let page = Page::containing_addr(f.start_addr());
-                mapper.map_to(page, f, PRESENT, &mut alloc);
-            });
     });
 
     let _ = active_table.switch(new_table);
