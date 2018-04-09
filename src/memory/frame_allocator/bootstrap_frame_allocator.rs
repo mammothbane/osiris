@@ -6,9 +6,9 @@ pub struct BootstrapFrameAllocator {
 }
 
 impl BootstrapFrameAllocator {
-    pub fn new(starting_frame: usize) -> Self {
+    pub fn new(starting_frame: Frame) -> Self {
         BootstrapFrameAllocator {
-            next_free_frame: starting_frame,
+            next_free_frame: starting_frame.index(),
         }
     }
 }

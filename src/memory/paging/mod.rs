@@ -37,8 +37,9 @@ pub fn cleanup(boot_info: &BootInformation) -> ActivePageTable {
         .map(|s| s.offset() + s.size())
         .max().expect("unable to find maximum physical offset") as usize;
 
-    let start_frame = Frame::containing_addr(max_offset + PAGE_SIZE*4);
-    let mut alloc =  BootstrapFrameAllocator::new(start_frame.index());
+    let frame_base: usize = 0x500000;
+    let start_frame = Frame::containing_addr(frame_base);
+    let mut alloc =  BootstrapFrameAllocator::new(start_frame);
 
     let mut temp_page = TemporaryPage::new(
         Page::new_from_index(0xcafebabe),
@@ -54,6 +55,8 @@ pub fn cleanup(boot_info: &BootInformation) -> ActivePageTable {
     let mut active_table = unsafe { ActivePageTable::new() };
     let mut new_table = InactivePageTable::new(new_table_frame, &mut active_table, &mut temp_page);
 
+    unsafe { ::x86_64::instructions::halt() };
+
     active_table.with(&mut new_table, &mut temp_page, |mapper| {
         for section in elf_sections_tag.sections() {
             if !section.is_allocated() || section.size() == 0 || section.name() == ".boot" {
@@ -65,11 +68,11 @@ pub fn cleanup(boot_info: &BootInformation) -> ActivePageTable {
 
             let mut flags = EntryFlags::from_elf_section(&section);
 
-            let frame_start = Frame::containing_addr(section.offset() as usize);
-            let frame_end = Frame::containing_addr((section.offset() + section.size() - 1) as usize);
-
             let page_start = Page::containing_addr(section.start_address() as usize);
             let page_end = Page::containing_addr(section.end_address() as usize);
+
+            let frame_start = Frame::containing_addr(section.offset() as usize);
+            let frame_end = Frame::containing_addr((section.offset() + section.size() - 1) as usize);
 
             Frame::range_inclusive(frame_start, frame_end)
                 .zip(Page::range_inclusive(page_start, page_end))

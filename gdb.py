@@ -46,7 +46,7 @@ class PageTable(Command):
 
         print('inferred table level: {}'.format(table_level))
 
-        table = gdb.parse_and_eval('(u64*){:#x}'.format(table_base))
+        table = gdb.parse_and_eval('{:#x} as *const u64'.format(table_base))
 
         entries_written = False
 

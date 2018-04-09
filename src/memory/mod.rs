@@ -59,14 +59,16 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
 
     println!("memory areas:");
     for area in mmap_tag.memory_areas() {
-        println!("    start: {:#x}, length: {:#x}", area.start_address(), area.size());
+        println!("  start: {:#x}, length: {:#x}", area.start_address(), area.size());
     }
 
     let elf_sections_tag = boot_info.elf_sections_tag().expect("elf sections required");
 
     println!("\nkernel sections:");
     for section in elf_sections_tag.sections().filter(|s| s.is_allocated() && s.size() > 0) {
-        println!("    {}: addr: {:#x}, size: {:#x}, flags: {:#b}", section.name(), section.start_address(), section.size(), section.flags());
+        println!("  {}: addr: {:#x}, offset: {:#x}, size: {:#x}, flags: {:#b}",
+                 section.name(), section.start_address(), section.offset(),
+                 section.size(), section.flags());
     }
 
     println!("\nkernel start: {:#x}, end: {:#x}", kernel_start, kernel_end);
