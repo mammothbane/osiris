@@ -26,4 +26,4 @@ features = ["spin_no_std"]
 
 [patch.crates-io]
 failure = { git = "https://github.com/mammothbane/failure" }
-multiboot2 = { git = "https://github.com/mammothbane/multiboot2-elf64" }
+multiboot2 = { git = "https://github.com/mammothbane/multiboot2-elf64", branch = "sections-64" }

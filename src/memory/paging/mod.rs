@@ -64,22 +64,17 @@ pub fn cleanup(boot_info: &BootInformation) -> ActivePageTable {
         Frame::range_inclusive(mb_start, mb_end)
             .for_each(|f| mapper.identity_map(f, PRESENT, &mut alloc));
 
+        let elf_sections_tag = boot_info.elf_sections_tag().expect("unable to find elf sections");
+
         for section in elf_sections_tag.sections() {
             if !section.is_allocated() || section.size() == 0 || section.name() == ".boot" {
                 continue;
             }
 
-            let start_addr = section.start_address();
-            let _start_addr2 = section.start_address() as usize;
-
-            let _page = Page::containing_addr(_start_addr2);
-
-            assert_eq!(start_addr % PAGE_SIZE as u64, 0, "sections must be page-aligned");
-            println!("mapping section {} at addr: {:#x}, size: {:#x}", section.name(), start_addr, section.size());
+            assert_eq!(section.start_address() % PAGE_SIZE as u64, 0, "sections must be page-aligned");
+            println!("mapping section {} at addr: {:#x}, size: {:#x}", section.name(), section.start_address(), section.size());
 
             let mut flags = EntryFlags::from_elf_section(&section);
-
-            let _start_addr3 = section.start_address() as usize;
 
             let page_start = Page::containing_addr(section.start_address() as usize);
             let page_end = Page::containing_addr(section.end_address() as usize);

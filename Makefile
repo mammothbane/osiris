@@ -16,7 +16,7 @@ rust_src := $(wildcard src/**/*.rs)
 target ?= $(arch)-osiris
 rust_os := target/$(target)/debug/libosiris.a
 
-qemu_flags = -m 1G -s
+qemu_flags = -m 1G -s -monitor stdio
 
 .PHONY: all clean run iso kernel gdb debug int
 

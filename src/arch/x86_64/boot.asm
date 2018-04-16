@@ -105,7 +105,7 @@ setup_pagetable:
     or eax, 0b11
     mov [p4_table + 256*8], eax
 
-    mov eax, p2_high
+    mov eax, p2_table
     or eax, 0b11
     mov [p3_high], eax
 
@@ -117,7 +117,6 @@ setup_pagetable:
     or eax, 0b10000011 ; present, writable, huge
 
     mov [p2_table + ecx * 8], eax
-    mov [p2_high + ecx * 8], eax
 
     inc ecx
     cmp ecx, 512
@@ -168,8 +167,6 @@ p2_table:
     times 4096 db 0
 
 p3_high:
-    times 4096 db 0
-p2_high:
     times 4096 db 0
 
 stack_bottom:
