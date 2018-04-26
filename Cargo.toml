@@ -3,14 +3,16 @@ name = "osiris"
 version = "0.1.0"
 authors = ["Nathan Perry <avaglir@gmail.com>"]
 
-[lib]
-crate-type = ["staticlib"]
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
 
 [dependencies]
 rlibc = "1.0"
 volatile = "0.1.0"
 spin = "0.4.5"
-multiboot2 = "0.5.0"
 bitflags = "0.9.1"
 x86_64 = "0.1.2"
 once = "0.3.3"
@@ -24,6 +26,17 @@ itertools = { version = "0.7.6", default-features = false }
 version = "0.2.4"
 features = ["spin_no_std"]
 
+[package.metadata.bootimage]
+default-target = "x86_64-osiris"
+minimum-image-size = 0
+run-command = ["qemu-system-x86_64", "-drive", "format=raw,file={}"]
+output = "build/kernel.bin"
+
+[package.metadata.bootimage.bootloader]
+precompiled = true
+name = "bootloader"
+git = "https://github.com/mammothbane/bootloader"
+
 [patch.crates-io]
 failure = { git = "https://github.com/mammothbane/failure" }
-multiboot2 = { git = "https://github.com/mammothbane/multiboot2-elf64", branch = "sections-64" }
+linked_list_allocator = { git = "https://github.com/mammothbane/linked-list-allocator" }

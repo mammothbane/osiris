@@ -19,7 +19,7 @@ GDB_PYTHON_MODULE_DIRECTORY="$RUSTC_SYSROOT/lib/rustlib/etc"
 # Run GDB with the additional arguments that load the pretty printers
 # Set the environment variable `RUST_GDB` to overwrite the call to a
 # different/specific command (defaults to `gdb`).
-RUST_GDB="${RUST_GDB:-gdb}"
+RUST_GDB="${RUST_GDB:-rust-os-gdb/bin/rust-gdb}"
 PYTHONPATH="$PYTHONPATH:$GDB_PYTHON_MODULE_DIRECTORY" ${RUST_GDB} \
   -d "$GDB_PYTHON_MODULE_DIRECTORY" \
   -iex "add-auto-load-safe-path $GDB_PYTHON_MODULE_DIRECTORY" \

@@ -1,8 +1,10 @@
 use core::fmt;
 use core::ptr::Unique;
-use memory::VGA_BASE;
+//use memory::VGA_BASE;
 use spin::Mutex;
 use volatile::Volatile;
+
+const VGA_BASE: usize = 0xb8000;
 
 #[allow(dead_code)]
 #[repr(u8)]

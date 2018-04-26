@@ -1,5 +1,6 @@
 #![feature(lang_items)]
 #![no_std]
+#![no_main]
 
 #![feature(asm)]
 #![feature(alloc)]
@@ -25,7 +26,6 @@
 
 extern crate bit_field;
 extern crate linked_list_allocator;
-extern crate multiboot2;
 extern crate rlibc;
 extern crate spin;
 extern crate volatile;
@@ -35,27 +35,14 @@ use linked_list_allocator::LockedHeap;
 
 #[macro_use]
 mod vga_buffer;
-mod memory;
-mod interrupts;
+//mod memory;
+//mod interrupts;
 mod lateinit;
 
+static ALLOC: LockedHeap = LockedHeap::empty();
+
 #[global_allocator]
-pub static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
-
-fn enable_nx() {
-    use x86_64::registers::msr::{IA32_EFER, rdmsr, wrmsr};
-
-    unsafe {
-        let efer = rdmsr(IA32_EFER);
-        wrmsr(IA32_EFER, efer | 1 << 11);
-    }
-}
-
-fn enable_write_protect() {
-    use x86_64::registers::control_regs::{cr0, cr0_write, Cr0};
-
-    unsafe { cr0_write(cr0() | Cr0::WRITE_PROTECT) };
-}
+pub static HEAP_ALLOCATOR: &'static LockedHeap = &ALLOC;
 
 fn enable_syscall() {
     use x86_64::registers::msr::{IA32_EFER, rdmsr, wrmsr};
@@ -70,13 +57,10 @@ fn enable_syscall() {
 pub extern "C" fn osiris_main(multiboot_info: usize) -> ! {
     vga_buffer::clear_screen();
 
-    enable_nx();
-    enable_write_protect();
-
-    let boot_info = unsafe { multiboot2::load(multiboot_info) };
-    let mut memory_controller = memory::init(&boot_info);
-
-    interrupts::init(&mut memory_controller);
+//    let boot_info = unsafe { multiboot2::load(multiboot_info) };
+//    let mut memory_controller = memory::init(&boot_info);
+//
+//    interrupts::init(&mut memory_controller);
     enable_syscall();
 
     println!("\n\nHalting normally.");

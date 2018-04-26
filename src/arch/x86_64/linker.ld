@@ -1,14 +1,7 @@
-ENTRY(start)
+ENTRY(osiris_main)
 OUTPUT_FORMAT(elf64-x86-64)
 
 SECTIONS {
-    . = 1M;
-    .boot :
-    {
-        KEEP(*(.multiboot_header))
-        *(.boot .boot.*)
-    }
-
     /* main kernel */
     . = 0xffff800000000000;
 

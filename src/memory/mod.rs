@@ -44,7 +44,7 @@ fn kernel_bounds(boot_info: &BootInformation) -> (u64, u64) {
     (kernel_start, kernel_end)
 }
 
-pub fn init(boot_info: &BootInformation) -> MemoryController {
+pub fn init() -> MemoryController {
     use self::paging::{Page, ActivePageTable};
     use self::frame_allocator::AreaFrameAllocator;
     use super::HEAP_ALLOCATOR;
@@ -69,6 +69,11 @@ pub fn init(boot_info: &BootInformation) -> MemoryController {
         println!("  {}: addr: {:#x}, offset: {:#x}, size: {:#x}, flags: {:#b}",
                  section.name(), section.start_address(), section.offset(),
                  section.size(), section.flags());
+    }
+
+    println!("\nmodules:");
+    for module in boot_info.module_tags() {
+        println!("  {}: {}-{}", module.name(), module.start_address(), module.end_address());
     }
 
     println!("\nkernel start: {:#x}, end: {:#x}", kernel_start, kernel_end);
