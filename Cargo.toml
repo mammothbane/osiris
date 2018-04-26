@@ -17,10 +17,12 @@ bitflags = "0.9.1"
 x86_64 = "0.1.2"
 once = "0.3.3"
 linked_list_allocator = "0.5.0"
+os_bootinfo = "0.2.0"
 bit_field = "0.7.0"
 failure = { version = "0.1.1", default-features = false, features = ["derive"] }
 failure_derive = { version = "0.1.1", default-features = false }
 itertools = { version = "0.7.6", default-features = false }
+fixedvec = "0.2"
 
 [dependencies.lazy_static]
 version = "0.2.4"
@@ -29,7 +31,7 @@ features = ["spin_no_std"]
 [package.metadata.bootimage]
 default-target = "x86_64-osiris"
 minimum-image-size = 0
-run-command = ["qemu-system-x86_64", "-drive", "format=raw,file={}"]
+run-command = ["qemu-system-x86_64", "-drive", "format=raw,file={}", "-m", "1G", "-monitor", "stdio"]
 output = "build/kernel.bin"
 
 [package.metadata.bootimage.bootloader]

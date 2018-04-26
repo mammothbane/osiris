@@ -23,6 +23,7 @@
 #[macro_use] extern crate bitflags;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate once;
+#[macro_use] extern crate fixedvec;
 
 extern crate bit_field;
 extern crate linked_list_allocator;
@@ -30,13 +31,14 @@ extern crate rlibc;
 extern crate spin;
 extern crate volatile;
 extern crate x86_64;
+extern crate os_bootinfo as bootinfo;
 
 use linked_list_allocator::LockedHeap;
 
 #[macro_use]
 mod vga_buffer;
-//mod memory;
-//mod interrupts;
+mod memory;
+mod interrupts;
 mod lateinit;
 
 static ALLOC: LockedHeap = LockedHeap::empty();
@@ -54,13 +56,12 @@ fn enable_syscall() {
 }
 
 #[no_mangle]
-pub extern "C" fn osiris_main(multiboot_info: usize) -> ! {
+pub extern "C" fn osiris_main() -> ! {
     vga_buffer::clear_screen();
 
-//    let boot_info = unsafe { multiboot2::load(multiboot_info) };
-//    let mut memory_controller = memory::init(&boot_info);
-//
-//    interrupts::init(&mut memory_controller);
+    let mut memory_controller = memory::init();
+
+    interrupts::init(&mut memory_controller);
     enable_syscall();
 
     println!("\n\nHalting normally.");

@@ -9,6 +9,8 @@ pub use self::stack_allocator::Stack;
 use self::frame_allocator::AreaFrameAllocator;
 use self::mem_info::MemoryInfo;
 use lateinit::LateInit;
+use bootinfo::BootInfo;
+use fixedvec::FixedVec;
 
 mod paging;
 mod stack_allocator;
@@ -25,24 +27,10 @@ pub const VGA_BASE: usize = 0xb8000;
 pub const HEAP_OFFSET: usize = 0o_000_001_000_000_0000;
 pub const HEAP_SIZE: usize = 100 * 1024;
 
+const BOOT_INFO_PTR: *const BootInfo = 0xb0071f0000 as *const _;
+
 pub static HEAP_START: LateInit<VirtualAddr> = LateInit::new();
 pub static BOOT_MEM_INFO: LateInit<MemoryInfo> = LateInit::new();
-
-fn kernel_bounds(boot_info: &BootInformation) -> (u64, u64) {
-    let elf_sections_tag = boot_info.elf_sections_tag().expect("elf sections required");
-
-    let kernel_start = elf_sections_tag.sections()
-        .filter(|s| s.is_allocated() && s.size() > 0)
-        .map(|s| s.start_address())
-        .min().unwrap();
-
-    let kernel_end = elf_sections_tag.sections()
-        .filter(|s| s.is_allocated() && s.size() > 0)
-        .map(|s| s.start_address())
-        .max().unwrap();
-
-    (kernel_start, kernel_end)
-}
 
 pub fn init() -> MemoryController {
     use self::paging::{Page, ActivePageTable};
@@ -51,35 +39,25 @@ pub fn init() -> MemoryController {
 
     assert_has_not_been_called!("memory::init must only be called once");
 
-    // TODO: unmap unused (low) pages
+    let boot_info = unsafe { BOOT_INFO_PTR.as_ref().unwrap() };
+
+    println!("physical memory regions:");
+    boot_info.memory_map.iter().for_each(|region| {
+        println!("    {:>12?}: {:#x}-{:#x}", region.region_type, region.range.start_addr(), region.range.end_addr())
+    });
+
+    let mem = alloc_stack!([MemoryRegion; 4]);
+    let mut kernel_regions = FixedVec::new(&mut mem);
+
+    boot_info.memory_map.iter()
+        .filter(|reg| reg.region_type == ::bootinfo::MemoryRegionType::Kernel)
+        .clone_into(&mut vec);
+
+    assert_eq!(kernel_regions.len(), 1);
+
+
+
     let mut active_table = unsafe { ActivePageTable::new() };
-
-    let (kernel_start, kernel_end) = kernel_bounds(&boot_info);
-    let mmap_tag = boot_info.memory_map_tag().expect("memory map tag required");
-
-    println!("memory areas:");
-    for area in mmap_tag.memory_areas() {
-        println!("  start: {:#x}, length: {:#x}", area.start_address(), area.size());
-    }
-
-    let elf_sections_tag = boot_info.elf_sections_tag().expect("elf sections required");
-
-    println!("\nkernel sections:");
-    for section in elf_sections_tag.sections().filter(|s| s.is_allocated() && s.size() > 0) {
-        println!("  {}: addr: {:#x}, offset: {:#x}, size: {:#x}, flags: {:#b}",
-                 section.name(), section.start_address(), section.offset(),
-                 section.size(), section.flags());
-    }
-
-    println!("\nmodules:");
-    for module in boot_info.module_tags() {
-        println!("  {}: {}-{}", module.name(), module.start_address(), module.end_address());
-    }
-
-    println!("\nkernel start: {:#x}, end: {:#x}", kernel_start, kernel_end);
-    println!("multiboot start: {:#x}, end: {:#x}", boot_info.start_address(), boot_info.end_address());
-
-    paging::cleanup(boot_info);
 
     let heap_start = (kernel_end % 4096 + 8192) as usize;
 
