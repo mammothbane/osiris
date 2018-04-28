@@ -5,6 +5,7 @@
 use core::{
     ops::Deref,
     cell::UnsafeCell,
+    convert::AsRef,
     fmt::{
         Display,
         Debug,
@@ -33,6 +34,14 @@ impl <T> Deref for LateInit<T> {
 
     #[inline(always)]
     fn deref(&self) -> &T {
+        debug_assert!(unsafe { *(&(*self.0.get()).is_some()) }, "LateInit used without initialization");
+        (unsafe { &(*self.0.get()) }).as_ref().unwrap()
+    }
+}
+
+impl <T> AsRef<T> for LateInit<T> {
+    #[inline(always)]
+    fn as_ref(&self) -> &T {
         debug_assert!(unsafe { *(&(*self.0.get()).is_some()) }, "LateInit used without initialization");
         (unsafe { &(*self.0.get()) }).as_ref().unwrap()
     }
