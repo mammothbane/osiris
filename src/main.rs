@@ -11,7 +11,6 @@
 #![feature(const_fn)]
 #![feature(abi_x86_interrupt)]
 #![feature(try_trait)]
-#![feature(match_default_bindings)]
 
 // TODO: remove
 #![allow(dead_code)]

@@ -1,5 +1,3 @@
-use multiboot2::ElfSection;
-
 use memory::Frame;
 use memory::frame::IFrame;
 
@@ -49,26 +47,5 @@ bitflags! {
         const HUGE_PAGE = 1 << 7;
         const GLOBAL = 1 << 8;
         const NX = 1 << 63;
-    }
-}
-
-impl EntryFlags {
-    pub fn from_elf_section(sect: &ElfSection) -> EntryFlags {
-        use multiboot2::ElfSectionFlags;
-
-        let mut flags = EntryFlags::empty();
-        if sect.flags().contains(ElfSectionFlags::ALLOCATED) {
-            flags |= PRESENT;
-        }
-
-        if sect.flags().contains(ElfSectionFlags::WRITABLE) {
-            flags |= WRITABLE;
-        }
-
-        if !sect.flags().contains(ElfSectionFlags::EXECUTABLE) {
-            flags |= NX
-        }
-
-        flags
     }
 }

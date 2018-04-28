@@ -1,6 +1,7 @@
 use memory::Frame;
 
 use super::*;
+use super::temporary_page::TemporaryPage;
 
 pub struct InactivePageTable {
     p4_frame: Frame,

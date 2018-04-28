@@ -1,6 +1,7 @@
-use super::{VirtualAddr, PAGE_SIZE};
-
 use core::ops::Add;
+
+use memory::PAGE_SIZE;
+use super::VirtualAddr;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

@@ -1,5 +1,3 @@
-use multiboot2::BootInformation;
-
 pub use self::frame::Frame;
 pub use self::frame_allocator::*;
 pub use self::frame_set::*;
@@ -7,30 +5,29 @@ pub use self::paging::{PhysicalAddr, VirtualAddr};
 pub use self::stack_allocator::Stack;
 
 use self::frame_allocator::AreaFrameAllocator;
-use self::mem_info::MemoryInfo;
 use lateinit::LateInit;
-use bootinfo::BootInfo;
+use bootinfo::{BootInfo, MemoryMap, MemoryRegion};
 use fixedvec::FixedVec;
 
 mod paging;
 mod stack_allocator;
 mod frame;
-mod mem_info;
 pub mod frame_set;
 pub mod frame_allocator;
-pub mod bump_allocator;
+//pub mod bump_allocator;
 
 pub const PAGE_SIZE: usize = 4096;
-pub const KERNEL_BASE: VirtualAddr = 0xffff_8000_0000_0000; // higher half
 pub const VGA_BASE: usize = 0xb8000;
 
-pub const HEAP_OFFSET: usize = 0o_000_001_000_000_0000;
+pub static HEAP_START: LateInit<VirtualAddr> = LateInit::new();
 pub const HEAP_SIZE: usize = 100 * 1024;
 
 const BOOT_INFO_PTR: *const BootInfo = 0xb0071f0000 as *const _;
 
-pub static HEAP_START: LateInit<VirtualAddr> = LateInit::new();
-pub static BOOT_MEM_INFO: LateInit<MemoryInfo> = LateInit::new();
+pub const KERNEL_BASE: VirtualAddr = 0xffff_8000_0000_0000; // higher half
+pub static KERNEL_MAX: LateInit<VirtualAddr> = LateInit::new();
+
+pub static MEMORY_MAP: LateInit<MemoryMap> = LateInit::new();
 
 pub fn init() -> MemoryController {
     use self::paging::{Page, ActivePageTable};
@@ -40,40 +37,46 @@ pub fn init() -> MemoryController {
     assert_has_not_been_called!("memory::init must only be called once");
 
     let boot_info = unsafe { BOOT_INFO_PTR.as_ref().unwrap() };
+    unsafe { MEMORY_MAP.init(boot_info.memory_map.clone()) }
 
     println!("physical memory regions:");
-    boot_info.memory_map.iter().for_each(|region| {
+    MEMORY_MAP.iter().for_each(|region| {
         println!("    {:>12?}: {:#x}-{:#x}", region.region_type, region.range.start_addr(), region.range.end_addr())
     });
+    println!();
 
-    let mem = alloc_stack!([MemoryRegion; 4]);
-    let mut kernel_regions = FixedVec::new(&mut mem);
+    let mut mem: [MemoryRegion; 4] = unsafe { ::core::mem::uninitialized() };
+    let mut kernel_regions = FixedVec::<MemoryRegion>::new(&mut mem);
 
-    boot_info.memory_map.iter()
+    MEMORY_MAP.iter()
         .filter(|reg| reg.region_type == ::bootinfo::MemoryRegionType::Kernel)
-        .clone_into(&mut vec);
+        .for_each(|reg| kernel_regions.push(*reg).unwrap());
 
     assert_eq!(kernel_regions.len(), 1);
+    let kernel_range = kernel_regions[0].range;
 
+    let kernel_size = (kernel_range.end_addr() - kernel_range.start_addr()) as usize;
+    let kernel_end = KERNEL_BASE + kernel_size;
 
+    println!("kernel end identified at {:#x}", kernel_end);
+
+    unsafe { KERNEL_MAX.init(kernel_end + PAGE_SIZE - (kernel_end % PAGE_SIZE)); }
+    println!("KERNEL_MAX: {:#x}", *KERNEL_MAX);
 
     let mut active_table = unsafe { ActivePageTable::new() };
 
-    let heap_start = (kernel_end % 4096 + 8192) as usize;
+    unsafe { HEAP_START.init(*KERNEL_MAX + PAGE_SIZE); }
 
-    let heap_start_page = Page::containing_addr(heap_start);
-    let heap_end_page = Page::containing_addr(heap_start + HEAP_SIZE - 1);
+    let heap_start_page = Page::containing_addr(*HEAP_START);
+    let heap_end_page = Page::containing_addr(*HEAP_START + HEAP_SIZE - 1);
+
+    println!("mapping heap in range: {:#x} - {:#x}", *HEAP_START, *HEAP_START + HEAP_SIZE - 1);
 
     {
         let mut ary: [Frame; 2048] = unsafe { ::core::mem::uninitialized() };
-        println!("need {} frames, have {}", HEAP_SIZE/PAGE_SIZE, ary.len());
 
         let mut tmp_alloc = AreaFrameAllocator::new(
-            kernel_start as usize + KERNEL_BASE,
-            kernel_end as usize + KERNEL_BASE,
-            boot_info.start_address(), // offsets are already accounted for here
-            boot_info.end_address(),
-            mmap_tag.memory_areas(),
+            MEMORY_MAP.clone(),
             StackFrameSet::new(&mut ary),
         );
 
@@ -81,19 +84,11 @@ pub fn init() -> MemoryController {
             .for_each(|p| active_table.map(p, paging::WRITABLE, &mut tmp_alloc));
     }
 
-    unsafe {
-        HEAP_ALLOCATOR.lock().init(HEAP_OFFSET, HEAP_OFFSET + HEAP_SIZE);
-        BOOT_MEM_INFO.init(boot_info.into());
-        HEAP_START.init(heap_start as VirtualAddr);
-    }
+    unsafe { HEAP_ALLOCATOR.lock().init(*HEAP_START, HEAP_SIZE); }
 
     let frame_allocator = AreaFrameAllocator::new(
-        kernel_start as usize,
-        kernel_end as usize,
-        boot_info.start_address() + KERNEL_BASE,
-        boot_info.end_address() + KERNEL_BASE,
-        mmap_tag.memory_areas(),
-        VecFrameSet::new(), // TODO: extract from active table
+        MEMORY_MAP.clone(),
+        VecFrameSet::new(),
     );
 
     let stack_allocator = {

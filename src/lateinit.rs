@@ -2,7 +2,16 @@
 /// Basically a wrapper around Cell that only permits setting once and has debug support to ensure
 /// this.
 
-use core::{ops::Deref, cell::UnsafeCell};
+use core::{
+    ops::Deref,
+    cell::UnsafeCell,
+    fmt::{
+        Display,
+        Debug,
+        Formatter,
+        Error as FmtError
+    }
+};
 
 pub struct LateInit<T>(UnsafeCell<Option<T>>);
 
@@ -26,5 +35,23 @@ impl <T> Deref for LateInit<T> {
     fn deref(&self) -> &T {
         debug_assert!(unsafe { *(&(*self.0.get()).is_some()) }, "LateInit used without initialization");
         (unsafe { &(*self.0.get()) }).as_ref().unwrap()
+    }
+}
+
+impl <T: Debug> Debug for LateInit<T> {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
+        match unsafe { &(*self.0.get()) } {
+            Some(ref x) => { x.fmt(f) },
+            None => { write!(f, "<UNINITIALIZED>") },
+        }
+    }
+}
+
+impl <T: Display> Display for LateInit<T> {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
+        match unsafe { &(*self.0.get()) } {
+            Some(ref x) => { x.fmt(f) },
+            None => { write!(f, "<UNINITIALIZED>") },
+        }
     }
 }

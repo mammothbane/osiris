@@ -1,7 +1,11 @@
-use memory::frame::IFrame;
+use core::ops::{Deref, DerefMut};
 
-use super::*;
-use super::inactive_page_table::IInactivePageTable;
+use memory::frame::{IFrame, Frame};
+
+use super::mapper::Mapper;
+use super::inactive_page_table::{IInactivePageTable, InactivePageTable};
+use super::temporary_page::TemporaryPage;
+use super::entry::*;
 
 pub struct ActivePageTable {
     mapper: Mapper,

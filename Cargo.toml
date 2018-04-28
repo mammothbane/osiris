@@ -42,3 +42,4 @@ git = "https://github.com/mammothbane/bootloader"
 [patch.crates-io]
 failure = { git = "https://github.com/mammothbane/failure" }
 linked_list_allocator = { git = "https://github.com/mammothbane/linked-list-allocator" }
+os_bootinfo = { git = "https://github.com/mammothbane/os_bootinfo" }
