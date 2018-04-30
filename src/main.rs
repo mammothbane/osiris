@@ -1,7 +1,7 @@
-#![feature(lang_items)]
 #![no_std]
 #![no_main]
 
+#![feature(lang_items)]
 #![feature(asm)]
 #![feature(alloc)]
 #![feature(allocator_api)]
