@@ -31,6 +31,7 @@ extern crate spin;
 extern crate volatile;
 extern crate x86_64;
 extern crate os_bootinfo as bootinfo;
+extern crate lateinit;
 
 use linked_list_allocator::LockedHeap;
 
@@ -38,7 +39,6 @@ use linked_list_allocator::LockedHeap;
 mod vga_buffer;
 mod memory;
 mod interrupts;
-mod lateinit;
 
 static ALLOC: LockedHeap = LockedHeap::empty();
 
