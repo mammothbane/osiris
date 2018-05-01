@@ -1,6 +1,5 @@
 use core::fmt;
 use core::ptr::Unique;
-//use memory::VGA_BASE;
 use spin::Mutex;
 use volatile::Volatile;
 
@@ -68,6 +67,19 @@ impl Writer {
     pub fn write(&mut self, b: u8) {
         match b {
             b'\n' => self.newline(),
+            b'\t' => {
+                self.write(b' ');
+                self.write(b' ');
+            },
+            0x08 => { // backspace
+                if self.column_position == 0 {
+                    return
+                }
+
+                self.column_position -= 1;
+                self.write(b' ');
+                self.column_position -= 1;
+            },
             b => {
                 if self.column_position >= BUFFER_WIDTH {
                     self.newline();

@@ -39,6 +39,7 @@ use linked_list_allocator::LockedHeap;
 mod vga_buffer;
 mod memory;
 mod interrupts;
+mod io;
 
 #[global_allocator]
 pub static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -63,11 +64,36 @@ pub extern "C" fn osiris_main() -> ! {
 
     enable_syscall();
 
+    use io::ScanCode;
 
-    println!("\n\nHalting normally.");
-    unsafe { x86_64::instructions::halt() };
+    fn read_one() -> ScanCode {
+        loop {
+            let status = unsafe { io::inb(0x64) };
+            if status & 1 == 0 {
+                continue;
+            }
 
-    unreachable!();
+            let data = unsafe { io::inb(0x60) };
+
+            if status & 1 << 5 != 0 { // ignore mouse input
+                continue;
+            }
+
+            let scancode = unsafe { core::mem::transmute(data) };
+
+            if scancode == ScanCode::Extended {
+                let _ = read_one();
+                continue;
+            }
+
+            return scancode;
+        }
+    }
+
+    loop {
+        let x = read_one();
+        x.ascii().map(|c| print!("{}", c as char));
+    }
 }
 
 #[lang = "panic_fmt"]
