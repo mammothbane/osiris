@@ -38,25 +38,18 @@ pub fn init() -> MemoryController {
     assert_has_not_been_called!("memory::init must only be called once");
 
     let boot_info = unsafe { BOOT_INFO_PTR.as_ref().unwrap() };
-    unsafe { MEMORY_MAP.init(boot_info.memory_map.clone()) }
+    let mut memory_map = boot_info.memory_map.clone();
 
     println!("physical memory regions:");
-    MEMORY_MAP.iter().for_each(|region| {
+    memory_map.iter().for_each(|region| {
         println!("    {:>12?}: {:#x}-{:#x}", region.region_type, region.range.start_addr(), region.range.end_addr())
     });
     println!();
 
-    let mut mem: [MemoryRegion; 4] = unsafe { ::core::mem::uninitialized() };
-    let mut kernel_regions = FixedVec::<MemoryRegion>::new(&mut mem);
-
-    MEMORY_MAP.iter()
-        .filter(|reg| reg.region_type == MemoryRegionType::Kernel)
-        .for_each(|reg| kernel_regions.push(*reg).unwrap());
-
     let mut active_table = unsafe { ActivePageTable::new() };
 
     // bootloader is identity mapped, unmap it
-    MEMORY_MAP.iter()
+    memory_map.iter_mut()
         .filter(|reg| reg.region_type == MemoryRegionType::Bootloader)
         .for_each(|reg| {
             let start_page = Page::containing_addr(reg.range.start_addr() as usize);
@@ -64,7 +57,16 @@ pub fn init() -> MemoryController {
 
             Page::range_inclusive(start_page, end_page)
                 .for_each(|p| active_table.unmap(p, &mut NopAllocator));
+
+            reg.region_type = MemoryRegionType::Usable;
         });
+
+    let mut mem: [MemoryRegion; 4] = unsafe { ::core::mem::uninitialized() };
+    let mut kernel_regions = FixedVec::<MemoryRegion>::new(&mut mem);
+
+    memory_map.iter()
+        .filter(|reg| reg.region_type == MemoryRegionType::Kernel)
+        .for_each(|reg| kernel_regions.push(*reg).unwrap());
 
     assert_eq!(kernel_regions.len(), 1);
     let kernel_range = kernel_regions[0].range;
@@ -84,10 +86,9 @@ pub fn init() -> MemoryController {
 
     println!("mapping heap in range: {:#x} - {:#x}", *HEAP_START, *HEAP_START + HEAP_INIT_SIZE - 1);
 
-
     let last_tmp_frame = {
         let mut tmp_alloc = AreaFrameAllocator::new(
-            MEMORY_MAP.clone(),
+            memory_map.clone(),
             EmptyFrameSet,
         );
 
@@ -100,7 +101,7 @@ pub fn init() -> MemoryController {
     unsafe { HEAP_ALLOCATOR.lock().init(*HEAP_START, HEAP_INIT_SIZE); }
 
     let mut frame_allocator = AreaFrameAllocator::new(
-        MEMORY_MAP.clone(),
+        memory_map.clone(),
         VecFrameSet::new(),
     );
     frame_allocator.set_start_frame(last_tmp_frame);
@@ -112,6 +113,8 @@ pub fn init() -> MemoryController {
 
         stack_allocator::StackAllocator::new(stack_alloc_range)
     };
+
+    unsafe { MEMORY_MAP.init(memory_map) };
 
     MemoryController {
         active_table,
