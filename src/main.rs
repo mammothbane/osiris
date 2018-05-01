@@ -63,17 +63,6 @@ pub extern "C" fn osiris_main() -> ! {
 
     enable_syscall();
 
-    {
-        let mut v = vec!();
-
-        for _ in 0..64*1024 {
-            v.push(8);
-        }
-    }
-
-    unsafe {
-        asm!("int $$0x80");
-    }
 
     println!("\n\nHalting normally.");
     unsafe { x86_64::instructions::halt() };
