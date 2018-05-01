@@ -97,8 +97,7 @@ pub fn init() -> MemoryController {
         tmp_alloc.next_free()
     };
 
-//    unsafe { HEAP_ALLOCATOR.lock().init(*HEAP_START, HEAP_INIT_SIZE); }
-    unsafe { HEAP_ALLOCATOR.init(*HEAP_START, *HEAP_START + HEAP_INIT_SIZE); }
+    unsafe { HEAP_ALLOCATOR.lock().init(*HEAP_START, HEAP_INIT_SIZE); }
 
     let mut frame_allocator = AreaFrameAllocator::new(
         MEMORY_MAP.clone(),
@@ -124,7 +123,7 @@ pub fn init() -> MemoryController {
 // extend the heap to its full capacity. should only run after page fault handler is enabled.
 pub fn extend_heap() {
     use super::HEAP_ALLOCATOR;
-//    unsafe { HEAP_ALLOCATOR.lock().extend(HEAP_SIZE - HEAP_INIT_SIZE) }
+    unsafe { HEAP_ALLOCATOR.lock().extend(HEAP_SIZE - HEAP_INIT_SIZE) }
 }
 
 pub struct MemoryController {

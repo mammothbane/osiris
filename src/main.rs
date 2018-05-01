@@ -22,8 +22,8 @@
 #[macro_use] extern crate bitflags;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate once;
-#[macro_use] extern crate fixedvec;
 
+extern crate fixedvec;
 extern crate bit_field;
 extern crate linked_list_allocator;
 extern crate rlibc;
@@ -40,13 +40,8 @@ mod vga_buffer;
 mod memory;
 mod interrupts;
 
-//#[global_allocator]
-//pub static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
-
-use self::memory::bump_allocator::BumpAllocator;
-
 #[global_allocator]
-pub static mut HEAP_ALLOCATOR: BumpAllocator = BumpAllocator::empty();
+pub static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 fn enable_syscall() {
     use x86_64::registers::msr::{IA32_EFER, rdmsr, wrmsr};
@@ -64,20 +59,16 @@ pub extern "C" fn osiris_main() -> ! {
     let mut memory_controller = memory::init();
 
     interrupts::init(&mut memory_controller);
-//    memory::extend_heap();
+    memory::extend_heap();
 
     enable_syscall();
-
 
     {
         let mut v = vec!();
 
-        for i in 0..2048 {
-//            println!("{}", v.capacity());
-            v.push(4);
+        for _ in 0..64*1024 {
+            v.push(8);
         }
-
-        println!("{}", v.len());
     }
 
     unsafe {

@@ -1,6 +1,6 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use core::alloc::{GlobalAlloc, AllocErr, Layout, Opaque};
+use core::alloc::{GlobalAlloc, Layout, Opaque};
 
 #[derive(Debug)]
 pub struct BumpAllocator {
@@ -50,7 +50,6 @@ unsafe impl GlobalAlloc for BumpAllocator {
                 let next_now = self.next.compare_and_swap(current_next, alloc_end, Ordering::Relaxed);
 
                 if next_now == current_next {
-//                    println!("allocating {:#x} ({:#x})", alloc_start, layout.size());
                     return alloc_start as *mut Opaque;
                 }
             } else {
