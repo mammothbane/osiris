@@ -1,6 +1,6 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use alloc::heap::{Alloc, AllocErr, Layout};
+use core::alloc::{GlobalAlloc, AllocErr, Layout, Opaque};
 
 #[derive(Debug)]
 pub struct BumpAllocator {
@@ -10,8 +10,18 @@ pub struct BumpAllocator {
 }
 
 impl BumpAllocator {
-    pub const fn new(heap_start: usize, heap_end: usize) -> Self {
-        Self { heap_start, heap_end, next: AtomicUsize::new(heap_start) }
+    pub const fn empty() -> Self {
+        BumpAllocator {
+            heap_start: 0,
+            heap_end: 0,
+            next: AtomicUsize::new(0),
+        }
+    }
+
+    pub fn init(&mut self, heap_start: usize, heap_end: usize) {
+        self.heap_start = heap_start;
+        self.heap_end = heap_end;
+        self.next.store(heap_start, Ordering::Relaxed);
     }
 }
 
@@ -29,8 +39,8 @@ pub fn align_up(addr: usize, align: usize) -> usize {
     align_down(addr + align - 1, align)
 }
 
-unsafe impl<'a> Alloc for &'a BumpAllocator {
-    unsafe fn alloc(&mut self, layout: Layout) -> Result<*mut u8, AllocErr> {
+unsafe impl GlobalAlloc for BumpAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut Opaque {
         loop {
             let current_next = self.next.load(Ordering::Relaxed);
             let alloc_start = align_up(current_next, layout.align());
@@ -40,15 +50,16 @@ unsafe impl<'a> Alloc for &'a BumpAllocator {
                 let next_now = self.next.compare_and_swap(current_next, alloc_end, Ordering::Relaxed);
 
                 if next_now == current_next {
-                    return Ok(alloc_start as *mut u8);
+//                    println!("allocating {:#x} ({:#x})", alloc_start, layout.size());
+                    return alloc_start as *mut Opaque;
                 }
             } else {
-                return Err(AllocErr::Exhausted { request: layout });
+                return 0 as *mut Opaque;
             }
         }
     }
 
-    unsafe fn dealloc(&mut self, _ptr: *mut u8, _layout: Layout) {
+    unsafe fn dealloc(&self, _ptr: *mut Opaque, _layout: Layout) {
         // leak
     }
 }

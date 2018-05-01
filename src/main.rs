@@ -40,10 +40,13 @@ mod vga_buffer;
 mod memory;
 mod interrupts;
 
-static ALLOC: LockedHeap = LockedHeap::empty();
+//#[global_allocator]
+//pub static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
+
+use self::memory::bump_allocator::BumpAllocator;
 
 #[global_allocator]
-pub static HEAP_ALLOCATOR: &'static LockedHeap = &ALLOC;
+pub static mut HEAP_ALLOCATOR: BumpAllocator = BumpAllocator::empty();
 
 fn enable_syscall() {
     use x86_64::registers::msr::{IA32_EFER, rdmsr, wrmsr};
@@ -61,7 +64,25 @@ pub extern "C" fn osiris_main() -> ! {
     let mut memory_controller = memory::init();
 
     interrupts::init(&mut memory_controller);
+//    memory::extend_heap();
+
     enable_syscall();
+
+
+    {
+        let mut v = vec!();
+
+        for i in 0..2048 {
+//            println!("{}", v.capacity());
+            v.push(4);
+        }
+
+        println!("{}", v.len());
+    }
+
+    unsafe {
+        asm!("int $$0x80");
+    }
 
     println!("\n\nHalting normally.");
     unsafe { x86_64::instructions::halt() };
@@ -77,4 +98,10 @@ pub extern fn panic_fmt(fmt: core::fmt::Arguments, file: &'static str, line: u32
 
     unsafe { x86_64::instructions::halt(); }
     loop {}
+}
+
+#[lang = "oom"]
+#[no_mangle]
+pub extern fn oom() -> ! {
+    panic!("out of memory");
 }

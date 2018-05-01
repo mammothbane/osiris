@@ -26,6 +26,11 @@ impl <T: FrameSetMut> AreaFrameAllocator<T> {
         allocator
     }
 
+    pub fn set_start_frame(&mut self, f: Frame) {
+        self.next_free_frame = f;
+        self.choose_next_area();
+    }
+
     fn choose_next_area(&mut self) {
         self.current_region = self.memory_map.iter()
             .filter(|region| {
@@ -43,9 +48,7 @@ impl <T: FrameSetMut> AreaFrameAllocator<T> {
         });
     }
 
-    pub fn allocated_frames(self) -> T {
-        self.frame_set
-    }
+    pub fn next_free(self) -> Frame { self.next_free_frame }
 }
 
 impl <T: FrameSetMut> FrameAllocator for AreaFrameAllocator<T> {

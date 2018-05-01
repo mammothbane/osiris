@@ -8,6 +8,7 @@ use super::{ENTRY_COUNT, Page, PhysicalAddr, VirtualAddr};
 use super::entry::*;
 use super::page::IPage;
 use super::table::{self, Level4, Table};
+use memory::frame_set::VecFrameSet;
 
 pub struct Mapper {
     p4: Unique<Table<Level4>>,
@@ -32,6 +33,9 @@ impl Mapper {
         where A: FrameAllocator
     {
         let frame = allocator.alloc().expect("no free frames");
+
+        println!("mapping page at {:#x} to frame {:#x}", page.start_addr(), frame.index());
+
         self.map_to(page, frame, flags, allocator);
     }
 
@@ -126,7 +130,7 @@ impl Mapper {
     ///     - we could run out of memory doing this
     ///     - we're inferring things from memory that we maybe ought not to
     /// NOTE: we must have a heap before calling this function
-    pub unsafe fn recover_frames(&self) -> impl FrameSet {
+    pub unsafe fn recover_frames(&self) -> VecFrameSet {
         use memory::frame_set::VecFrameSet;
         use alloc::Vec;
         use core::convert::From;

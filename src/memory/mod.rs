@@ -6,7 +6,7 @@ pub use self::stack_allocator::Stack;
 
 use self::frame_allocator::AreaFrameAllocator;
 use lateinit::LateInit;
-use bootinfo::{BootInfo, MemoryMap, MemoryRegion};
+use bootinfo::{BootInfo, MemoryMap, MemoryRegion, MemoryRegionType};
 use fixedvec::FixedVec;
 
 mod paging;
@@ -14,13 +14,14 @@ mod stack_allocator;
 mod frame;
 pub mod frame_set;
 pub mod frame_allocator;
-//pub mod bump_allocator;
+pub mod bump_allocator;
 
 pub const PAGE_SIZE: usize = 4096;
 pub const VGA_BASE: usize = 0xb8000;
 
 pub static HEAP_START: LateInit<VirtualAddr> = LateInit::new();
-pub const HEAP_SIZE: usize = 100 * 1024;
+pub const HEAP_INIT_SIZE: usize = 1024 * PAGE_SIZE;
+pub const HEAP_SIZE: usize = 100 * HEAP_INIT_SIZE;
 
 const BOOT_INFO_PTR: *const BootInfo = 0xb0071f0000 as *const _;
 
@@ -49,8 +50,21 @@ pub fn init() -> MemoryController {
     let mut kernel_regions = FixedVec::<MemoryRegion>::new(&mut mem);
 
     MEMORY_MAP.iter()
-        .filter(|reg| reg.region_type == ::bootinfo::MemoryRegionType::Kernel)
+        .filter(|reg| reg.region_type == MemoryRegionType::Kernel)
         .for_each(|reg| kernel_regions.push(*reg).unwrap());
+
+    let mut active_table = unsafe { ActivePageTable::new() };
+
+    // bootloader is identity mapped, unmap it
+    MEMORY_MAP.iter()
+        .filter(|reg| reg.region_type == MemoryRegionType::Bootloader)
+        .for_each(|reg| {
+            let start_page = Page::containing_addr(reg.range.start_addr() as usize);
+            let end_page = Page::containing_addr(reg.range.end_addr() as usize - 1);
+
+            Page::range_inclusive(start_page, end_page)
+                .for_each(|p| active_table.unmap(p, &mut NopAllocator));
+        });
 
     assert_eq!(kernel_regions.len(), 1);
     let kernel_range = kernel_regions[0].range;
@@ -63,36 +77,37 @@ pub fn init() -> MemoryController {
     unsafe { KERNEL_MAX.init(kernel_end + PAGE_SIZE - (kernel_end % PAGE_SIZE)); }
     println!("KERNEL_MAX: {:#x}", *KERNEL_MAX);
 
-    let mut active_table = unsafe { ActivePageTable::new() };
-
     unsafe { HEAP_START.init(*KERNEL_MAX + PAGE_SIZE); }
 
     let heap_start_page = Page::containing_addr(*HEAP_START);
-    let heap_end_page = Page::containing_addr(*HEAP_START + HEAP_SIZE - 1);
+    let heap_end_page = Page::containing_addr(*HEAP_START + HEAP_INIT_SIZE - 1);
 
-    println!("mapping heap in range: {:#x} - {:#x}", *HEAP_START, *HEAP_START + HEAP_SIZE - 1);
+    println!("mapping heap in range: {:#x} - {:#x}", *HEAP_START, *HEAP_START + HEAP_INIT_SIZE - 1);
 
-    {
-        let mut ary: [Frame; 2048] = unsafe { ::core::mem::uninitialized() };
 
+    let last_tmp_frame = {
         let mut tmp_alloc = AreaFrameAllocator::new(
             MEMORY_MAP.clone(),
-            StackFrameSet::new(&mut ary),
+            EmptyFrameSet,
         );
 
         Page::range_inclusive(heap_start_page, heap_end_page)
             .for_each(|p| active_table.map(p, paging::WRITABLE, &mut tmp_alloc));
-    }
 
-    unsafe { HEAP_ALLOCATOR.lock().init(*HEAP_START, HEAP_SIZE); }
+        tmp_alloc.next_free()
+    };
 
-    let frame_allocator = AreaFrameAllocator::new(
+//    unsafe { HEAP_ALLOCATOR.lock().init(*HEAP_START, HEAP_INIT_SIZE); }
+    unsafe { HEAP_ALLOCATOR.init(*HEAP_START, *HEAP_START + HEAP_INIT_SIZE); }
+
+    let mut frame_allocator = AreaFrameAllocator::new(
         MEMORY_MAP.clone(),
         VecFrameSet::new(),
     );
+    frame_allocator.set_start_frame(last_tmp_frame);
 
     let stack_allocator = {
-        let stack_start = heap_end_page + 1;
+        let stack_start = heap_end_page + 1_000_000;
         let stack_end = stack_start + 100;
         let stack_alloc_range = Page::range_inclusive(stack_start, stack_end);
 
@@ -104,6 +119,12 @@ pub fn init() -> MemoryController {
         frame_allocator,
         stack_allocator,
     }
+}
+
+// extend the heap to its full capacity. should only run after page fault handler is enabled.
+pub fn extend_heap() {
+    use super::HEAP_ALLOCATOR;
+//    unsafe { HEAP_ALLOCATOR.lock().extend(HEAP_SIZE - HEAP_INIT_SIZE) }
 }
 
 pub struct MemoryController {

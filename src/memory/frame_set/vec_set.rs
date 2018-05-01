@@ -25,6 +25,10 @@ impl VecFrameSet {
             frames: vec![],
         }
     }
+
+    pub fn iter(&self) -> impl Iterator<Item=&Frame> {
+        self.frames.iter()
+    }
 }
 
 impl <T: Into<Vec<Frame>>> From<T> for VecFrameSet {
