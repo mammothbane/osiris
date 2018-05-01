@@ -1,12 +1,10 @@
 use core::ptr::Unique;
 
 use memory::{Frame, FrameAllocator, PAGE_SIZE};
-use memory::frame::IFrame;
 use memory::frame_set::VecFrameSet;
 
 use super::{ENTRY_COUNT, Page, PhysicalAddr, VirtualAddr};
 use super::entry::*;
-use super::page::IPage;
 use super::table::{self, Level4, Table};
 
 pub struct Mapper {

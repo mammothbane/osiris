@@ -1,9 +1,9 @@
 use core::ops::{Deref, DerefMut};
 
-use memory::frame::{IFrame, Frame};
+use memory::frame::Frame;
 
 use super::mapper::Mapper;
-use super::inactive_page_table::{IInactivePageTable, InactivePageTable};
+use super::inactive_page_table::InactivePageTable;
 use super::temporary_page::TemporaryPage;
 use super::entry::*;
 

@@ -1,7 +1,5 @@
 use super::{FrameSet, FrameSetMut, Frame};
 
-use memory::frame::IFrame;
-
 #[derive(Clone, Copy, Debug)]
 pub struct EmptyFrameSet;
 

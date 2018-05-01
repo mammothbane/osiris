@@ -1,5 +1,4 @@
 use memory::Frame;
-use memory::frame::IFrame;
 
 #[derive(Debug)]
 pub struct Entry(u64);

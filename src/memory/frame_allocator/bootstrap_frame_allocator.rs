@@ -1,5 +1,4 @@
 use memory::{Frame, FrameAllocator};
-use memory::frame::IFrame;
 
 pub struct BootstrapFrameAllocator {
     next_free_frame: usize,

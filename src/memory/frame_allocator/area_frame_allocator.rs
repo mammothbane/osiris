@@ -1,6 +1,5 @@
 use memory::{Frame, FrameAllocator};
 use memory::frame_set::FrameSetMut;
-use memory::frame::IFrame;
 use bootinfo::{MemoryMap, MemoryRegion, MemoryRegionType};
 
 pub struct AreaFrameAllocator<T> {

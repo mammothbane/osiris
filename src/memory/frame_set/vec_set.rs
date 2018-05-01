@@ -3,8 +3,6 @@ use core::ops::Try;
 use alloc::Vec;
 
 use super::{Frame, FrameSet, FrameSetMut};
-use memory::frame::IFrame;
-
 
 /// A simple FrameSet implementation backed by a vector. This SHOULD NOT be used for recording
 /// actual frame allocation data except temporarily in bootstrapping situations.

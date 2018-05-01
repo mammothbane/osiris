@@ -19,21 +19,14 @@ impl InactivePageTable {
 
         InactivePageTable { p4_frame: frame }
     }
-}
 
-pub trait IInactivePageTable {
-    fn new_from_p4_frame(f: Frame) -> InactivePageTable;
-    fn p4_frame(&self) -> &Frame;
-}
-
-impl IInactivePageTable for InactivePageTable {
-    fn new_from_p4_frame(f: Frame) -> InactivePageTable {
+    pub(crate) fn new_from_p4_frame(f: Frame) -> InactivePageTable {
         InactivePageTable {
             p4_frame: f,
         }
     }
 
-    fn p4_frame(&self) -> &Frame {
+    pub(crate) fn p4_frame(&self) -> &Frame {
         &self.p4_frame
     }
 }

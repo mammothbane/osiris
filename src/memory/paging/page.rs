@@ -28,36 +28,26 @@ impl Page {
             end,
         }
     }
-}
 
-pub trait IPage {
-    fn new_from_index(index: usize) -> Page;
-    fn p4_index(&self) -> usize;
-    fn p3_index(&self) -> usize;
-    fn p2_index(&self) -> usize;
-    fn p1_index(&self) -> usize;
-}
-
-impl IPage for Page {
-    fn new_from_index(index: usize) -> Page {
+    pub(crate) fn new_from_index(index: usize) -> Page {
         Page {
             index
         }
     }
 
-    fn p4_index(&self) -> usize {
+    pub(crate) fn p4_index(&self) -> usize {
         (self.index >> 27) & 0o777
     }
 
-    fn p3_index(&self) -> usize {
+    pub(crate) fn p3_index(&self) -> usize {
         (self.index >> 18) & 0o777
     }
 
-    fn p2_index(&self) -> usize {
+    pub(crate) fn p2_index(&self) -> usize {
         (self.index >> 9) & 0o777
     }
 
-    fn p1_index(&self) -> usize {
+    pub(crate) fn p1_index(&self) -> usize {
         (self.index >> 0) & 0o777
     }
 }

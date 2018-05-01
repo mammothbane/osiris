@@ -3,7 +3,6 @@ use core::ops::Try;
 use itertools::Itertools;
 
 use super::{Frame, FrameSet, FrameSetMut};
-use memory::frame::IFrame;
 
 /// A simple FrameSet implementation backed by stack-allocated storage.
 #[derive(Debug)]

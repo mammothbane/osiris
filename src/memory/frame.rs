@@ -7,37 +7,27 @@ pub struct Frame {
     index: usize,
 }
 
-pub trait IFrame {
-    fn new(index: usize) -> Frame;
-    fn containing_addr(addr: usize) -> Frame;
-    fn start_addr(&self) -> PhysicalAddr;
-    fn range_inclusive(start: Frame, end: Frame) -> FrameIter;
-    fn index(&self) -> usize;
-//    fn clone(&self) -> Self;
-    fn set_index(&mut self, new_index: usize);
-}
-
-impl IFrame for Frame {
-    fn new(index: usize) -> Frame {
+impl Frame {
+    pub(crate) fn new(index: usize) -> Frame {
         Frame { index }
     }
 
-    fn containing_addr(addr: usize) -> Frame {
+    pub(crate) fn containing_addr(addr: usize) -> Frame {
         Frame{ index: addr / PAGE_SIZE }
     }
 
-    fn start_addr(&self) -> PhysicalAddr {
+    pub(crate) fn start_addr(&self) -> PhysicalAddr {
         self.index * PAGE_SIZE
     }
 
-    fn range_inclusive(start: Frame, end: Frame) -> FrameIter {
+    pub(crate) fn range_inclusive(start: Frame, end: Frame) -> FrameIter {
         FrameIter{
             start,
             end,
         }
     }
 
-    fn index(&self) -> usize {
+    pub(crate) fn index(&self) -> usize {
         self.index
     }
 
@@ -45,7 +35,7 @@ impl IFrame for Frame {
 //        Frame { index: self.index }
 //    }
 
-    fn set_index(&mut self, new_index: usize) {
+    pub(crate) fn set_index(&mut self, new_index: usize) {
         self.index = new_index
     }
 }
