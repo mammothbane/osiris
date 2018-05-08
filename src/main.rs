@@ -32,6 +32,7 @@ extern crate volatile;
 extern crate x86_64;
 extern crate os_bootinfo as bootinfo;
 extern crate lateinit;
+extern crate raw_cpuid as cpuid;
 
 use linked_list_allocator::LockedHeap;
 
@@ -40,7 +41,6 @@ mod vga_buffer;
 mod memory;
 mod interrupts;
 mod io;
-mod cpuid;
 
 #[global_allocator]
 pub static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -57,13 +57,6 @@ fn enable_syscall() {
 #[no_mangle]
 pub extern "C" fn osiris_main() -> ! {
     vga_buffer::clear_screen();
-
-    use cpuid::features::CpuFeatures;
-    let cpu_info = cpuid::features();
-
-    if !cpu_info.feature_info.contains(CpuFeatures::APIC) {
-        panic!("APIC not supported");
-    }
 
     let mut memory_controller = memory::init();
 

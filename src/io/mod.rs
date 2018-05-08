@@ -1,6 +1,8 @@
 pub use self::scan_code::ScanCode;
 
 mod scan_code;
+mod keyboard_status;
+mod apic;
 
 #[inline]
 pub unsafe fn inb(port: u16) -> u8 {
