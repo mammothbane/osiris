@@ -65,6 +65,8 @@ pub extern "C" fn osiris_main() -> ! {
 
     enable_syscall();
 
+    io::apic::setup_apic();
+
     use io::ScanCode;
 
     fn read_one() -> ScanCode {
