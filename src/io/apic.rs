@@ -31,6 +31,8 @@ pub fn setup_apic() {
         println!("APIC was disabled by SIVR, enabling it");
         unsafe { sivr.enable_apic(); }
     }
+
+    sivr.set_spurious_vector(0xff);
 }
 
 pub unsafe fn enable_apic() {
@@ -44,12 +46,6 @@ pub unsafe fn enable_apic() {
 }
 
 pub unsafe fn disable_apic() {
-    let apic_base = rdmsr(IA32_APIC_BASE);
-
-    if apic_base & (1 << 11) == 1 {
-        wrmsr(IA32_APIC_BASE, apic_base & !(1 << 11));
-    }
-
     SIVR::get().disable_apic()
 }
 
@@ -63,6 +59,16 @@ impl SIVR {
     pub fn get() -> &'static mut Self {
         let ptr = (*APIC_VIRT + Self::OFFSET) as *mut SIVR;
         unsafe { ptr.as_mut().unwrap() }
+    }
+
+    #[inline]
+    pub fn spurious_vector(&self) -> u8 {
+        (self.0 & 0xff) as u8
+    }
+
+    #[inline]
+    pub fn set_spurious_vector(&mut self, val: u8) {
+        self.0 |= val as u32
     }
 
     #[inline]
